@@ -1,6 +1,9 @@
 package parallelmis;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 
 /**
@@ -8,61 +11,63 @@ import java.util.List;
  * @author mraguzin
  */
 public class Graf {
-    private final int n; // broj vrhova
-    private List<Trojka<Integer,Integer,Float>> listaSusjednosti; // (i,j,težina)
-    private float[][] matricaSusjednosti; // konvencija je da težina ∞ označava
-    //nepostojanje brida
+    private int n; // broj vrhova; V={0,1,...,n-1}
+    private ArrayList<ArrayList<Integer>> listaSusjednosti = new ArrayList<>();
     
-    // konstrukcija preko liste susjednosti
-    public Graf(List<Trojka<Integer,Integer,Float>> listaSusjednosti) {
-        n = listaSusjednosti.size();
-        // provjera validnosti ulaza
-        for (var trojka : listaSusjednosti) {
-            if (trojka.prvi < 0 || trojka.prvi >= n ||
-                    trojka.drugi < 0 || trojka.drugi >= n ||
-                    trojka.prvi.equals(trojka.drugi) && trojka.treći != 0) // petlje nisu dozvoljene!
-                throw new IllegalArgumentException(trojka.toString());
-        }
-        
-        this.listaSusjednosti = listaSusjednosti;
+    public void dodajVrh() {
+        listaSusjednosti.add(new ArrayList<>());
+        ++n;
     }
     
-    // konstrukcija preko matrice susjednosti
-    public Graf(float[][] matricaSusjednosti) {
-        n = matricaSusjednosti.length;
-        // provjera validnosti ulaza
-        for (int i = 0; i < n; ++i) {
-            if (matricaSusjednosti[i].length != n)
-                throw new IllegalArgumentException("Matrica nije kvadratna!");
-            if (matricaSusjednosti[i][i] != 0)
-                throw new IllegalArgumentException("("+i+","+i+")="+
-            matricaSusjednosti[i][i]+", a mora biti jednak 0");
-        }
-        
-        this.matricaSusjednosti = matricaSusjednosti; //
-        //ovdje svakako nema smisla dozvoliti petlje jer one ili samo produljuju
-        //bilo koji put kroz dani vrh ili dovode do toga da je optimalno rješenje
-        //beskonačno petljanje!
+    public void dodajBrid(int i, int j) {
+        // ako želimo koristiti binarno pretraživanje ispod, moramo paziti da ubacujemo
+        // indekse susjeda na pravo mjesto
+        int idx = Collections.binarySearch(listaSusjednosti.get(i), j);
+        listaSusjednosti.get(i).add(idx, j);
+        idx = Collections.binarySearch(listaSusjednosti.get(j), i);
+        listaSusjednosti.get(j).add(idx, i);
+        //listaSusjednosti.get(i).add(j);
+        //listaSusjednosti.get(j).add(i);
     }
     
-    public float[][] dajMatricuSusjednosti() {
-        if (matricaSusjednosti != null)
-            return matricaSusjednosti;
-        // pretvorimo graf u matričnu reprezentaciju
-        matricaSusjednosti = new float[n][n];
-        for (int i = 0; i < n; ++i) {
-            for (int j = 0; j < n; ++j) {
-                if (i == j)
-                    matricaSusjednosti[i][i] = 0;
-                else
-                    matricaSusjednosti[i][j] = Float.POSITIVE_INFINITY;
+    public void ukloniBrid(int i, int j) {
+        listaSusjednosti.get(i).remove(Integer.valueOf(j));
+        listaSusjednosti.get(j).remove(Integer.valueOf(i));
+    }
+    
+    public void ukloniVrh(int idx) {
+        // prvo uklonimo sve incidentne bridove
+        for (var susjed : listaSusjednosti.get(idx)) {
+            int i = Collections.binarySearch(listaSusjednosti.get(susjed), idx);
+            listaSusjednosti.get(susjed).remove(i);
+            //listaSusjednosti.get(susjed).remove(Integer.valueOf(idx)); // Možda brže ako se koristi binarno? Uočimo da su liste
+            // susjeda uvijek sortirane
+        }
+        listaSusjednosti.remove(idx);
+        
+        // korigirajmo indekse susjeda za sve vrhove indeksa < idx
+        ArrayList<Integer> tmp1[] = new ArrayList[1];
+        tmp1 = listaSusjednosti.toArray(tmp1);
+        for (int i = 0; i < idx; ++i) {
+            //var lista = listaSusjednosti.get(i);
+            var lista = tmp1[i];
+            int j = Collections.binarySearch(lista, idx);
+            if (j < lista.size()) {
+                Integer[] tmp2 = new Integer[lista.size()];
+                tmp2 = lista.toArray(tmp2);
+                for (int k = j; k < lista.size(); ++k)
+                    tmp2[k]--;
+                
+                var l = Arrays.asList(tmp2);
+                //listaSusjednosti.remove(i);
+                //listaSusjednosti.add(i, new ArrayList<>(l));
+                tmp1[i] = new ArrayList<>(l);
             }
         }
         
-        for (var trojka : listaSusjednosti)
-            matricaSusjednosti[trojka.prvi][trojka.drugi] = trojka.treći;
-        
-        return matricaSusjednosti;
+        var l = Arrays.asList(tmp1);
+        listaSusjednosti = new ArrayList<>(l);
+        n--;
     }
     
     public static void ispišiMatricu(float[][] m) {
@@ -70,34 +75,28 @@ public class Graf {
             System.out.println(Arrays.toString(red));
     }
     
-    // Floyd-Warshallov algoritam
-    public float[][] najkraćiPut(boolean ispisKoraka) { // vraća matricu duljina najkraćih puteva između svih parova vrhova
-        // prema [1]
-        dajMatricuSusjednosti();
-        float[][] m = new float[n][];
+    public Integer[] dajVrhove() {
+        Integer[] arr = new Integer[n];
         for (int i = 0; i < n; ++i)
-            m[i] = matricaSusjednosti[i].clone();
+            arr[i] = i;
         
-        for (int k = 0; k < n; ++k) {
-            for (int i = 0; i < n; ++i) {
-                if (m[i][k] < Float.POSITIVE_INFINITY) {
-                    for (int j = 0; j < n; ++j) {
-                        if (m[k][j] < Float.POSITIVE_INFINITY) {
-                            float s = m[i][k] + m[k][j];
-                            if (s < m[i][j])
-                                m[i][j] = s;
-                        }
-                    }
-                }
-            }
-            
-            if (ispisKoraka) {
-                System.out.println("k="+k+":");
-                ispišiMatricu(m);
-            }
+        return arr;
+    }
+    
+    // "naivno" sekvencijalno rješenje MIS problema
+    public ArrayList<Integer> sequentialMIS() {
+        ArrayList<Integer> I = new ArrayList<>();
+        HashSet<Integer> V = new HashSet<>(Arrays.asList(dajVrhove()));
+        
+        while (!V.isEmpty()) {
+            int v = V.iterator().next();
+            I.add(v);
+            for (var susjed : listaSusjednosti.get(v))
+                V.remove(susjed);
+            V.remove(v);
         }
         
-        return m;
+        return I;
     }
     
 }
