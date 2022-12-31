@@ -5,6 +5,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.CyclicBarrier;
 
 /**
  *
@@ -91,12 +94,55 @@ public class Graf {
         while (!V.isEmpty()) {
             int v = V.iterator().next();
             I.add(v);
-            for (var susjed : listaSusjednosti.get(v))
-                V.remove(susjed);
+            //for (var susjed : listaSusjednosti.get(v))
+              //  V.remove(susjed);
+            V.removeAll(listaSusjednosti.get(v));
             V.remove(v);
         }
         
         return I;
+    }
+    
+    // slijedi nekoliko različitih rješenja temeljenih na paralelnim
+    // algoritmima za MIS; svaka metoda koristi svoj vlastiti način višedretvene
+    // organizacije posla
+    
+    public ArrayList<Integer> parallelMIS1() {
+        // prema [1]
+        // ova implementacija koristi barijere
+        final int brojDretvi = Runtime.getRuntime().availableProcessors();
+        final ConcurrentLinkedQueue<Integer> V = new ConcurrentLinkedQueue<>(Arrays.asList(dajVrhove()));
+        final ConcurrentSkipListSet<Integer> X = new ConcurrentSkipListSet<>();
+        final double[] vjerojatnosti = new double[n];
+        
+        for (int i = 0; i < n; ++i) {
+            if (i == 0) {
+                if (listaSusjednosti.get(i).isEmpty()) {
+                    vjerojatnosti[i] = 0;
+                    X.add(i);
+                }
+                else
+                    vjerojatnosti[i] = 1.0 / (2 * listaSusjednosti.get(i).size());
+            }
+            else {
+                if (listaSusjednosti.get(i).isEmpty()) {
+                    vjerojatnosti[i] = vjerojatnosti[i-1];
+                    X.add(i);
+                }
+                else
+                    vjerojatnosti[i] = vjerojatnosti[i-1] + 1.0 / (2 * listaSusjednosti.get(i).size());
+            }
+        }
+        
+        var dio1 = new Runnable() {
+            CyclicBarrier b1 = new CyclicBarrier(brojDretvi);
+            CyclicBarrier b2 = new CyclicBarrier(brojDretvi);
+            @Override
+            public void run() {
+                
+            }
+            
+        }
     }
     
 }
