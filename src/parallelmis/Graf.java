@@ -6,10 +6,11 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -17,7 +18,10 @@ import java.util.logging.Logger;
  *
  * @author mraguzin
  */
-public class Graf {
+public class Graf { // graf je napravljen da bude mutabilan tako da se lako
+    // modificira od strane GUI-ja i dalje smatra istim objektom, ali zbog
+    // paralelizma moramo osigurati da se nikako ne može mijenjati tijekom
+    // samog izvođenja paralelnih rješenja za MIS!
     private int n; // broj vrhova; V={0,1,...,n-1}
     private ArrayList<ArrayList<Integer>> listaSusjednosti = new ArrayList<>();
     
@@ -42,7 +46,7 @@ public class Graf {
         listaSusjednosti.get(j).remove(Integer.valueOf(i));
     }
     
-    public void ukloniVrh(int idx) {
+    public void ukloniVrh(int idx) { // PAZI: ovo efektivno *renumerira* vrhove -- bitno za GUI impl.!
         // prvo uklonimo sve incidentne bridove
         for (var susjed : listaSusjednosti.get(idx)) {
             int i = Collections.binarySearch(listaSusjednosti.get(susjed), idx);
@@ -98,8 +102,6 @@ public class Graf {
         while (!V.isEmpty()) {
             int v = V.iterator().next();
             I.add(v);
-            //for (var susjed : listaSusjednosti.get(v))
-              //  V.remove(susjed);
             V.removeAll(listaSusjednosti.get(v));
             V.remove(v);
         }
@@ -107,10 +109,22 @@ public class Graf {
         return I;
     }
     
+    private ConcurrentSkipListSet<Integer>[] particionirajVrhove(int k) {
+        ConcurrentSkipListSet<Integer>[] skupovi = new ConcurrentSkipListSet[k];
+        int m = n / k;
+        for (int i = 0; i < n; ++i) {
+            int j = i / m;
+            if (j == k)
+                k--;
+            skupovi[j].add(i);
+        }
+        
+        return skupovi;
+    }
+    
     public FutureTask<ArrayList<Integer>> parallelMIS1() {
         var c = (Callable<ArrayList<Integer>>) this::parallelMIS1impl;        
-        var task = new FutureTask<ArrayList<Integer>>(c);
-        return task;
+        return new FutureTask<>(c);
     }
     
     // slijedi nekoliko različitih rješenja temeljenih na paralelnim
@@ -121,28 +135,16 @@ public class Graf {
         // stroga implementacija algoritma iz [1], str. 3
         // ova implementacija koristi barijere
         final int brojDretvi = Runtime.getRuntime().availableProcessors();
+        final ConcurrentSkipListSet<Integer> Vp[] = particionirajVrhove(brojDretvi); // TODO: ovo uopće ne mora biti sinkronizirano?
         final ConcurrentSkipListSet<Integer> V = new ConcurrentSkipListSet<>(Arrays.asList(dajVrhove()));
         final ArrayList<Integer> I = new ArrayList<>();
         final ConcurrentSkipListSet<Integer> X = new ConcurrentSkipListSet<>();
         final double[] vjerojatnosti = new double[n];
+        final AtomicInteger brojačParticija = new AtomicInteger(brojDretvi); // 0 znači da smo gotovi
+        final AtomicBoolean gotovo = new AtomicBoolean(false);
         
         for (int i = 0; i < n; ++i) {
-            if (i == 0) {
-                if (listaSusjednosti.get(i).isEmpty()) {
-                    vjerojatnosti[i] = 0;
-                    X.add(i);
-                }
-                else
-                    vjerojatnosti[i] = 1.0 / (2.0 * listaSusjednosti.get(i).size());
-            }
-            else {
-                if (listaSusjednosti.get(i).isEmpty()) {
-                    vjerojatnosti[i] = vjerojatnosti[i-1];
-                    X.add(i);
-                }
-                else
-                    vjerojatnosti[i] = vjerojatnosti[i-1] + 1.0 / (2.0 * listaSusjednosti.get(i).size());
-            }
+            vjerojatnosti[i] = 1.0 / (2.0 * listaSusjednosti.get(i).size()); // tu može doći ∞ i to je ok
         }
         
         final ArrayList[] vrhovi = new ArrayList[brojDretvi];
@@ -151,30 +153,38 @@ public class Graf {
             I.addAll(X);
             int poDretvi = X.size() / brojDretvi;
             int j = 0;
-            for (int v : X) {
-                vrhovi[j / poDretvi].add(v);
+            for (int v : X) { // TODO: paraleliziraj ovu petlju po svakoj dretvi u glavnoj klasi;
+                // ovdje neka se samo računa unija!
+                int k = j / poDretvi;
+                if (k == brojDretvi)
+                    k--;
+                vrhovi[k].add(v);
                 ++j;
             }
+        };
+        
+        Runnable b3kraj = () -> {
+            X.clear();
+            
+            if (brojačParticija.getPlain() == 0)
+                gotovo.set(true);
         };
             
         CyclicBarrier b1 = new CyclicBarrier(brojDretvi);
         CyclicBarrier b2 = new CyclicBarrier(brojDretvi, b2kraj);
-        CyclicBarrier b3 = new CyclicBarrier(brojDretvi);
+        CyclicBarrier b3 = new CyclicBarrier(brojDretvi, b3kraj);
         List<Thread> dretve = new ArrayList<>(brojDretvi);
         
-        int vrhova = n / brojDretvi;
-        int prvi = 0;
         for (int i = 0; i < brojDretvi - 1; ++i) {
-            Thread d = new Thread(new Algoritam1Dio1(brojDretvi, i, prvi, vrhova,
-            V, X, listaSusjednosti, vjerojatnosti, vrhovi,
+            Thread d = new Thread(new Algoritam1Dio1(brojDretvi, i, Vp[i].size(),
+            Vp[i], V, X, listaSusjednosti, vjerojatnosti, vrhovi, gotovo, brojačParticija,
                     b1, b2, b3));
             dretve.add(d);
             d.start();
-            prvi += vrhova;
         }
-        Thread d = new Thread(new Algoritam1Dio1(brojDretvi, brojDretvi-1, prvi,
-        vrhova+n%brojDretvi, V, X, listaSusjednosti, vjerojatnosti, vrhovi,
-        b1, b2, b3));
+        Thread d = new Thread(new Algoritam1Dio1(brojDretvi, brojDretvi-1,
+                Vp[brojDretvi-1].size(), Vp[brojDretvi-1], V, X, listaSusjednosti,
+                vjerojatnosti, vrhovi, gotovo, brojačParticija, b1, b2, b3));
         dretve.add(d);
         d.start();
         

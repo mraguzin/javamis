@@ -8,10 +8,7 @@ package parallelmis.helpers;
 public class Pomoćne {
     public static int zadnji(double A[], double x, int l, int r) {
         if (l == r) {
-            if (A[l] == x)
-                return l;
-            else
-                return -1;
+            return l;
         }
         
         int mid = (l + r) / 2;
