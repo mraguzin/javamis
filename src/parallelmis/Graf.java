@@ -5,9 +5,13 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.FutureTask;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -103,15 +107,22 @@ public class Graf {
         return I;
     }
     
+    public FutureTask<ArrayList<Integer>> parallelMIS1() {
+        var c = (Callable<ArrayList<Integer>>) this::parallelMIS1impl;        
+        var task = new FutureTask<ArrayList<Integer>>(c);
+        return task;
+    }
+    
     // slijedi nekoliko različitih rješenja temeljenih na paralelnim
     // algoritmima za MIS; svaka metoda koristi svoj vlastiti način višedretvene
     // organizacije posla
     
-    public ArrayList<Integer> parallelMIS1() {
-        // prema [1]
+    private ArrayList<Integer> parallelMIS1impl() {
+        // stroga implementacija algoritma iz [1], str. 3
         // ova implementacija koristi barijere
         final int brojDretvi = Runtime.getRuntime().availableProcessors();
-        final ConcurrentLinkedQueue<Integer> V = new ConcurrentLinkedQueue<>(Arrays.asList(dajVrhove()));
+        final ConcurrentSkipListSet<Integer> V = new ConcurrentSkipListSet<>(Arrays.asList(dajVrhove()));
+        final ArrayList<Integer> I = new ArrayList<>();
         final ConcurrentSkipListSet<Integer> X = new ConcurrentSkipListSet<>();
         final double[] vjerojatnosti = new double[n];
         
@@ -122,7 +133,7 @@ public class Graf {
                     X.add(i);
                 }
                 else
-                    vjerojatnosti[i] = 1.0 / (2 * listaSusjednosti.get(i).size());
+                    vjerojatnosti[i] = 1.0 / (2.0 * listaSusjednosti.get(i).size());
             }
             else {
                 if (listaSusjednosti.get(i).isEmpty()) {
@@ -130,19 +141,51 @@ public class Graf {
                     X.add(i);
                 }
                 else
-                    vjerojatnosti[i] = vjerojatnosti[i-1] + 1.0 / (2 * listaSusjednosti.get(i).size());
+                    vjerojatnosti[i] = vjerojatnosti[i-1] + 1.0 / (2.0 * listaSusjednosti.get(i).size());
             }
         }
         
-        var dio1 = new Runnable() {
-            CyclicBarrier b1 = new CyclicBarrier(brojDretvi);
-            CyclicBarrier b2 = new CyclicBarrier(brojDretvi);
-            @Override
-            public void run() {
-                
+        final ArrayList[] vrhovi = new ArrayList[brojDretvi];
+        
+        Runnable b2kraj = () -> {
+            I.addAll(X);
+            int poDretvi = X.size() / brojDretvi;
+            int j = 0;
+            for (int v : X) {
+                vrhovi[j / poDretvi].add(v);
+                ++j;
             }
+        };
             
+        CyclicBarrier b1 = new CyclicBarrier(brojDretvi);
+        CyclicBarrier b2 = new CyclicBarrier(brojDretvi, b2kraj);
+        CyclicBarrier b3 = new CyclicBarrier(brojDretvi);
+        List<Thread> dretve = new ArrayList<>(brojDretvi);
+        
+        int vrhova = n / brojDretvi;
+        int prvi = 0;
+        for (int i = 0; i < brojDretvi - 1; ++i) {
+            Thread d = new Thread(new Algoritam1Dio1(brojDretvi, i, prvi, vrhova,
+            V, X, listaSusjednosti, vjerojatnosti, vrhovi,
+                    b1, b2, b3));
+            dretve.add(d);
+            d.start();
+            prvi += vrhova;
         }
+        Thread d = new Thread(new Algoritam1Dio1(brojDretvi, brojDretvi-1, prvi,
+        vrhova+n%brojDretvi, V, X, listaSusjednosti, vjerojatnosti, vrhovi,
+        b1, b2, b3));
+        dretve.add(d);
+        d.start();
+        
+        for (Thread i : dretve)
+            try {
+                i.join();
+            } catch (InterruptedException ex) {
+                Logger.getLogger(Graf.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        
+        return I;        
     }
     
 }
