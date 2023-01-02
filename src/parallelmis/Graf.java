@@ -154,26 +154,10 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         
         Runnable b2kraj = () -> {
             I.addAll(X);
-            for (int i = 0; i < brojDretvi; ++i)
-                vrhovi[i] = new ArrayList<>();
-            
-            int vel = X.size();
-            int poDretvi = vel / brojDretvi;
-            int j = 0;
-            int k = 0;
-            for (int v : X) { // TODO: paraleliziraj ovu petlju po svakoj dretvi u glavnoj klasi;
-                // ovdje neka se samo računa unija!
-                if (j < poDretvi)
-                    vrhovi[k].add(v);
-                else {
-                    vrhovi[++k].add(v);
-                    j = 0;
-                }
-                
-                ++j;
+            for (int i = 0; i < brojDretvi; ++i) {
+                vrhovi[i] = new ArrayList<>(Vp[i]);
+                vrhovi[i].retainAll(X);
             }
-            
-            System.out.println("X:" + X.toString());
         };
         
         Runnable b3kraj = () -> {

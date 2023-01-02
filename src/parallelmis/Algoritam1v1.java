@@ -67,10 +67,10 @@ public class Algoritam1v1 implements Runnable {
 
     @Override
     public void run() {
-        while (!gotovo.get()) {
+        while (!gotovo.getPlain()) {
             System.out.println(Arrays.toString(vjerojatnosti));
             System.out.println(listaSusjednosti.toString());
-            System.out.println("Particija:" + Vp.toString());
+            System.out.println("Vp[:"+id+"]=" + Vp.toString());
         // prva faza radi random odabir vrhova iz zadanog podskupa za staviti u skup X
         // svaka odluka odabira je nezavisna od drugih i ima vjerojatnost 1/(2d(v)) za vrh v
         
@@ -120,11 +120,11 @@ public class Algoritam1v1 implements Runnable {
             Logger.getLogger(Algoritam1v1.class.getName()).log(Level.SEVERE, null, ex);
         }
         
-        // treća i zadnja faza je uklanjanje S iz V
+        // treća i zadnja faza je uklanjanje X iz V
         ArrayList<Integer> mojiVrhovi = vrhovi[id];
         V.removeAll(mojiVrhovi);
-        Vp.removeAll(mojiVrhovi);
-        for (int v : mojiVrhovi) {
+        Vp.removeAll(X);
+        for (int v : X) {
             var susjedi = listaSusjednosti.get(v);
             V.removeAll(susjedi);
             Vp.removeAll(susjedi);
