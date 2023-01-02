@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import parallelmis.helpers.SharedDouble;
 
 /**
  *
@@ -34,11 +35,9 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         // ako želimo koristiti binarno pretraživanje ispod, moramo paziti da ubacujemo
         // indekse susjeda na pravo mjesto
         int idx = Collections.binarySearch(listaSusjednosti.get(i), j);
-        listaSusjednosti.get(i).add(idx, j);
+        listaSusjednosti.get(i).add(-idx-1, j);
         idx = Collections.binarySearch(listaSusjednosti.get(j), i);
-        listaSusjednosti.get(j).add(idx, i);
-        //listaSusjednosti.get(i).add(j);
-        //listaSusjednosti.get(j).add(i);
+        listaSusjednosti.get(j).add(-idx-1, i);
     }
     
     public void ukloniBrid(int i, int j) {
@@ -63,7 +62,7 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
             //var lista = listaSusjednosti.get(i);
             var lista = tmp1[i];
             int j = Collections.binarySearch(lista, idx);
-            if (j < lista.size()) {
+            if (j >= 0) {
                 Integer[] tmp2 = new Integer[lista.size()];
                 tmp2 = lista.toArray(tmp2);
                 for (int k = j; k < lista.size(); ++k)
@@ -116,6 +115,8 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
             int j = i / m;
             if (j == k)
                 k--;
+            if (skupovi[j] == null)
+                skupovi[j] = new ConcurrentSkipListSet<>();
             skupovi[j].add(i);
         }
         
@@ -134,7 +135,7 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
     private ArrayList<Integer> parallelMIS1impl() {
         // stroga implementacija algoritma iz [1], str. 3
         // ova implementacija koristi barijere
-        final int brojDretvi = Runtime.getRuntime().availableProcessors();
+        final int brojDretvi = n/Runtime.getRuntime().availableProcessors() == 0 ? n : n/Runtime.getRuntime().availableProcessors();
         final ConcurrentSkipListSet<Integer> Vp[] = particionirajVrhove(brojDretvi); // TODO: ovo uopće ne mora biti sinkronizirano?
         final ConcurrentSkipListSet<Integer> V = new ConcurrentSkipListSet<>(Arrays.asList(dajVrhove()));
         final ArrayList<Integer> I = new ArrayList<>();
@@ -142,12 +143,20 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         final double[] vjerojatnosti = new double[n];
         final AtomicInteger brojačParticija = new AtomicInteger(brojDretvi); // 0 znači da smo gotovi
         final AtomicBoolean gotovo = new AtomicBoolean(false);
+        final SharedDouble maxp = new SharedDouble(0.0);
         
+        System.out.println("Particije:" + Arrays.toString(Vp));
+        
+        double max = 0.0;
         for (int i = 0; i < n; ++i) {
             vjerojatnosti[i] = 1.0 / (2.0 * listaSusjednosti.get(i).size()); // tu može doći ∞ i to je ok
+            max += vjerojatnosti[i];
         }
+        maxp.set(max);
         
-        final ArrayList[] vrhovi = new ArrayList[brojDretvi];
+        System.out.println("vjerojatnosti:" + Arrays.toString(vjerojatnosti));
+        
+        final ArrayList<Integer>[] vrhovi = new ArrayList[brojDretvi];
         
         Runnable b2kraj = () -> {
             I.addAll(X);
@@ -158,16 +167,29 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
                 int k = j / poDretvi;
                 if (k == brojDretvi)
                     k--;
+                if (vrhovi[k] == null)
+                    vrhovi[k] = new ArrayList<>();
                 vrhovi[k].add(v);
                 ++j;
             }
+            
+            System.out.println("X:" + X.toString());
         };
         
         Runnable b3kraj = () -> {
             X.clear();
+            System.out.println("kraj faze3; V="+V.toString());
+            System.out.println("I="+I.toString());
             
             if (brojačParticija.getPlain() == 0)
                 gotovo.set(true);
+            else {
+                double maxi = 0.0;
+                for (int v : V)
+                    maxi += vjerojatnosti[v];
+                
+                maxp.set(maxi);
+            }
         };
             
         CyclicBarrier b1 = new CyclicBarrier(brojDretvi);
@@ -176,15 +198,15 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         List<Thread> dretve = new ArrayList<>(brojDretvi);
         
         for (int i = 0; i < brojDretvi - 1; ++i) {
-            Thread d = new Thread(new Algoritam1Dio1(brojDretvi, i, Vp[i].size(),
-            Vp[i], V, X, listaSusjednosti, vjerojatnosti, vrhovi, gotovo, brojačParticija,
-                    b1, b2, b3));
+            Thread d = new Thread(new Algoritam1v1(brojDretvi, i, Vp[i].size(),
+            Vp[i], V, X, listaSusjednosti, vjerojatnosti, maxp, vrhovi, gotovo,
+                    brojačParticija, b1, b2, b3));
             dretve.add(d);
             d.start();
         }
-        Thread d = new Thread(new Algoritam1Dio1(brojDretvi, brojDretvi-1,
+        Thread d = new Thread(new Algoritam1v1(brojDretvi, brojDretvi-1,
                 Vp[brojDretvi-1].size(), Vp[brojDretvi-1], V, X, listaSusjednosti,
-                vjerojatnosti, vrhovi, gotovo, brojačParticija, b1, b2, b3));
+                vjerojatnosti, maxp, vrhovi, gotovo, brojačParticija, b1, b2, b3));
         dretve.add(d);
         d.start();
         
