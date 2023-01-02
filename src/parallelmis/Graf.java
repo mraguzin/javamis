@@ -143,16 +143,10 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         final double[] vjerojatnosti = new double[n];
         final AtomicInteger brojačParticija = new AtomicInteger(brojDretvi); // 0 znači da smo gotovi
         final AtomicBoolean gotovo = new AtomicBoolean(false);
-        final SharedDouble maxp = new SharedDouble(0.0);
         
-        System.out.println("Particije:" + Arrays.toString(Vp));
-        
-        double max = 0.0;
         for (int i = 0; i < n; ++i) {
             vjerojatnosti[i] = 1.0 / (2.0 * listaSusjednosti.get(i).size()); // tu može doći ∞ i to je ok
-            max += vjerojatnosti[i];
         }
-        maxp.set(max);
         
         System.out.println("vjerojatnosti:" + Arrays.toString(vjerojatnosti));
         
@@ -160,16 +154,22 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         
         Runnable b2kraj = () -> {
             I.addAll(X);
-            int poDretvi = X.size() / brojDretvi;
+            for (int i = 0; i < brojDretvi; ++i)
+                vrhovi[i] = new ArrayList<>();
+            
+            int vel = X.size();
+            int poDretvi = vel / brojDretvi;
             int j = 0;
+            int k = 0;
             for (int v : X) { // TODO: paraleliziraj ovu petlju po svakoj dretvi u glavnoj klasi;
                 // ovdje neka se samo računa unija!
-                int k = j / poDretvi;
-                if (k == brojDretvi)
-                    k--;
-                if (vrhovi[k] == null)
-                    vrhovi[k] = new ArrayList<>();
-                vrhovi[k].add(v);
+                if (j < poDretvi)
+                    vrhovi[k].add(v);
+                else {
+                    vrhovi[++k].add(v);
+                    j = 0;
+                }
+                
                 ++j;
             }
             
@@ -183,13 +183,6 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
             
             if (brojačParticija.getPlain() == 0)
                 gotovo.set(true);
-            else {
-                double maxi = 0.0;
-                for (int v : V)
-                    maxi += vjerojatnosti[v];
-                
-                maxp.set(maxi);
-            }
         };
             
         CyclicBarrier b1 = new CyclicBarrier(brojDretvi);
@@ -199,14 +192,14 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         
         for (int i = 0; i < brojDretvi - 1; ++i) {
             Thread d = new Thread(new Algoritam1v1(brojDretvi, i, Vp[i].size(),
-            Vp[i], V, X, listaSusjednosti, vjerojatnosti, maxp, vrhovi, gotovo,
+            Vp[i], V, X, listaSusjednosti, vjerojatnosti, vrhovi, gotovo,
                     brojačParticija, b1, b2, b3));
             dretve.add(d);
             d.start();
         }
         Thread d = new Thread(new Algoritam1v1(brojDretvi, brojDretvi-1,
                 Vp[brojDretvi-1].size(), Vp[brojDretvi-1], V, X, listaSusjednosti,
-                vjerojatnosti, maxp, vrhovi, gotovo, brojačParticija, b1, b2, b3));
+                vjerojatnosti, vrhovi, gotovo, brojačParticija, b1, b2, b3));
         dretve.add(d);
         d.start();
         

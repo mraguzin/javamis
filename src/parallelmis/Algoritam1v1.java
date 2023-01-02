@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Random;
 import java.util.TreeMap;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -34,9 +35,6 @@ public class Algoritam1v1 implements Runnable {
     private final ConcurrentSkipListSet<Integer> X;
     private final ArrayList<ArrayList<Integer>> listaSusjednosti; // read-only
     private final double[] vjerojatnosti; // read-only
-    private final SharedDouble maxp; // maksimalna kumulativna vjerojatnosti za trenutni V;
-    // ažurira je zadnja dretva na zadnjoj barijeri u svakoj iteraciji
-    private TreeMap<Double,Integer> p; // kumulativne vjerojatnosti
     private final CyclicBarrier b1, b2, b3;
     private final int id;
     private final int brojDretvi;
@@ -47,7 +45,7 @@ public class Algoritam1v1 implements Runnable {
             ConcurrentSkipListSet<Integer> Vp,
             ConcurrentSkipListSet<Integer> V,
             ConcurrentSkipListSet<Integer> X,
-            ArrayList<ArrayList<Integer>> lista, double[] vjerojatnosti, SharedDouble maxp,
+            ArrayList<ArrayList<Integer>> lista, double[] vjerojatnosti,
             ArrayList<Integer>[] vrhovi, AtomicBoolean gotovo, AtomicInteger brojač,
             CyclicBarrier b1, CyclicBarrier b2, CyclicBarrier b3) {
         this.brojDretvi = brojDretvi;
@@ -60,7 +58,6 @@ public class Algoritam1v1 implements Runnable {
         this.b3 = b3;
         this.nVrhova = nVrhova;
         this.vjerojatnosti = vjerojatnosti;
-        this.maxp = maxp;
         this.listaSusjednosti = lista;
         //this.I = I;
         this.V = V;
@@ -70,34 +67,24 @@ public class Algoritam1v1 implements Runnable {
 
     @Override
     public void run() {
-        while (!gotovo.getPlain()) {
+        while (!gotovo.get()) {
+            System.out.println(Arrays.toString(vjerojatnosti));
+            System.out.println(listaSusjednosti.toString());
+            System.out.println("Particija:" + Vp.toString());
         // prva faza radi random odabir vrhova iz zadanog podskupa za staviti u skup X
         // svaka odluka odabira je nezavisna od drugih i ima vjerojatnost 1/(2d(v)) za vrh v
         
-        double prošla = 0.0;
-        p = new TreeMap<>();
-        for (int v : Vp) {
-            if (vjerojatnosti[v] < Double.POSITIVE_INFINITY) {
-                p.put(prošla + vjerojatnosti[v], v);
-                prošla += vjerojatnosti[v];
-            }
-            else
-                X.add(v);
-        }
-        
         for (int i = 0; i < nIteracija; ++i) {
-            double odabir = ThreadLocalRandom.current().nextDouble(maxp.get());
-            // TODO: treba li ovdje svaka dretva nezavisno birati samo iz svog podskupa vrhova?
-            // Onda nije potrebno birati iz globalnog raspona vjerojatnosti, nego samo iz Vp
-            var par1 = p.floorEntry(odabir);
-            var par2 = p.ceilingEntry(odabir);
-            if (par1 != null)
-                X.add(par1.getValue());
-            else if (par2 != null)
-                X.add(par2.getValue());
-            //if (par != null)
-              //  X.add(par.getValue());
-        }
+            for (int v : Vp) {
+                if (vjerojatnosti[v] < Double.POSITIVE_INFINITY) {
+                    double odabir = ThreadLocalRandom.current().nextDouble();
+                    if (vjerojatnosti[v] < odabir)
+                        X.add(v);
+                    }
+                else
+                    X.add(v);
+                }
+            }
         
         try {
             b1.await();
