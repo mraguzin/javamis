@@ -129,6 +129,22 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         return skupovi;
     }
     
+    //TODO: napravi samo jednu generičku verziju ovog
+    private LinkedHashSet<Integer>[] particionirajVrhove2(int k) {
+        LinkedHashSet<Integer>[] skupovi = new LinkedHashSet[k];
+        int m = n / k;
+        for (int i = 0; i < n; ++i) {
+            int j = i / m;
+            if (j == k)
+                k--;
+            if (skupovi[j] == null)
+                skupovi[j] = new LinkedHashSet<>();
+            skupovi[j].add(i);
+        }
+        
+        return skupovi;
+    }
+    
     public FutureTask<ArrayList<Integer>> parallelMIS1() {
         var c = (Callable<ArrayList<Integer>>) this::parallelMIS1impl;        
         return new FutureTask<>(c);
@@ -283,6 +299,88 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
                 vjerojatnosti, vrhovi, gotovo, brojačParticija, b1, b2, b3,
         lokotR, lokotW));
         
+        dretve.add(d);
+        d.start();
+        
+        for (Thread i : dretve)
+            try {
+                i.join();
+            } catch (InterruptedException ex) {
+                Logger.getLogger(Graf.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        
+        return I;        
+    }
+    
+    private ArrayList<Integer> parallelMIS3impl() {
+        // stroga implementacija algoritma iz [1], str. 3
+        // ova implementacija koristi barijere
+        final int brojDretvi = n/Runtime.getRuntime().availableProcessors() == 0 ? n : n/Runtime.getRuntime().availableProcessors();
+        final LinkedHashSet<Integer> Vp[] = particionirajVrhove2(brojDretvi);
+        final ConcurrentSkipListSet<Integer> V = new ConcurrentSkipListSet<>(Arrays.asList(dajVrhove()));
+        final ArrayList<Integer> I = new ArrayList<>();
+        final ConcurrentSkipListSet<Integer> X = new ConcurrentSkipListSet<>();
+        final double[] vjerojatnosti = new double[n];
+        final AtomicInteger brojačParticija = new AtomicInteger(brojDretvi); // 0 znači da smo gotovi
+        final AtomicBoolean gotovo = new AtomicBoolean(false);
+        final ArrayList<LinkedHashSet<Integer>> kopijaListe = new ArrayList<>(n); // kopija liste susjednosti
+        
+        for (int i = 0; i < n; ++i) {
+            kopijaListe.add(new LinkedHashSet<>(listaSusjednosti.get(i)));//TODO: deklarirati kopiju kao generički Set
+            // t.d. možemo koristiti Set.copyOf() radi kreiranja nemutabilnog skupa?
+            //var tmp = kopijaListe.get(i);
+            //kopijaListe.set(i, Set.copyOf(tmp));
+        }
+        
+        for (int i = 0; i < n; ++i) {
+            vjerojatnosti[i] = 1.0 / (2.0 * listaSusjednosti.get(i).size()); // tu može doći ∞ i to je ok
+        }
+        
+        System.out.println("vjerojatnosti:" + Arrays.toString(vjerojatnosti));
+        
+        final LinkedHashSet<Integer>[] vrhovi = new LinkedHashSet[brojDretvi]; // ideja je
+        // da ako koristimo sortiran skup, možemo u optimalnom vremenu izračunati
+        // presjeke i sl. Jesmo li sigurni da Java koristi takvu implementaciju
+        // u tom posebnom slučaju (kada su sve kolekcije sortirane)? Mogli bi
+        // jednostavno implementirati to preko polja, koristeći funkciju iz
+        // klase Pomoćne
+        
+        Runnable b2kraj = () -> {
+            var Xstar = new LinkedHashSet<Integer>(X);
+            for (int v : X)
+                Xstar.addAll(kopijaListe.get(v));
+            for (int i = 0; i < brojDretvi; ++i) {
+                vrhovi[i] = new LinkedHashSet<>(Vp[i]);
+                vrhovi[i].retainAll(Xstar); // Vp ∩ X*
+            }
+            
+            I.addAll(X);
+        };
+        
+        Runnable b3kraj = () -> {
+            X.clear();
+            System.out.println("kraj faze3; V="+V.toString());
+            System.out.println("I="+I.toString());
+            
+            if (brojačParticija.getPlain() == 0)
+                gotovo.set(true);
+        };
+            
+        CyclicBarrier b1 = new CyclicBarrier(brojDretvi);
+        CyclicBarrier b2 = new CyclicBarrier(brojDretvi, b2kraj);
+        CyclicBarrier b3 = new CyclicBarrier(brojDretvi, b3kraj);
+        List<Thread> dretve = new ArrayList<>(brojDretvi);
+        
+        for (int i = 0; i < brojDretvi - 1; ++i) {
+            Thread d = new Thread(new Algoritam1v3(brojDretvi, i, Vp[i].size(),
+            Vp[i], V, X, kopijaListe, vjerojatnosti, vrhovi, gotovo,
+                    brojačParticija, b1, b2, b3));
+            dretve.add(d);
+            d.start();
+        }
+        Thread d = new Thread(new Algoritam1v3(brojDretvi, brojDretvi-1,
+                Vp[brojDretvi-1].size(), Vp[brojDretvi-1], V, X, kopijaListe,
+                vjerojatnosti, vrhovi, gotovo, brojačParticija, b1, b2, b3));
         dretve.add(d);
         d.start();
         

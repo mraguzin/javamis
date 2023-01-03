@@ -17,8 +17,6 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import parallelmis.helpers.Pomoćne;
@@ -27,37 +25,36 @@ import parallelmis.helpers.SharedDouble;
 /**
  *
  * @author mraguzin
- * Ova varijanta paralalenog MIS algoritma koristi finije lokote za zaštitu skupa
- * V umjesto da za taj skup koristi neku Concurrent kolekciju.
+ * Ova varijanta koristi privremene sortirane nemutabilne kopije liste
+ * susjednosti. Također, implementirana je neka vrsta "work-stealing"
+ * pristupa kada neka od dretvi više nema posla
+ * (prošle varijante tada jednostavno besposleno prolaze kroz barijere).
  */
-public class Algoritam1v2 implements Runnable {
+public class Algoritam1v3 implements Runnable {
     private int nVrhova; // vrhovi koje ova dretva vidi
-    private final TreeSet<Integer>[] vrhovi; // sadrži particiju konačnog X na dretve, za 3. fazu;
+    private final LinkedHashSet<Integer>[] vrhovi; // sadrži particiju konačnog X na dretve, za 3. fazu;
     //particiju određuje zadnja dretva na 2. barijeri
     
     // bridove koje vidi su svi bridovi incidentni s gornjim vrhovima; ovo bi se moglo bolje raspodijeliti...
     private final int nIteracija = 1; // koliko puta pokušati izabrati vrh za X
-    private final LinkedHashSet<Integer> V;
-    private final TreeSet<Integer> Vp;
+    private final ConcurrentSkipListSet<Integer> V;
+    private final LinkedHashSet<Integer> Vp;
     private final ConcurrentSkipListSet<Integer> X;
-    private final ArrayList<ArrayList<Integer>> listaSusjednosti; // read-only
+    private final ArrayList<LinkedHashSet<Integer>> listaSusjednosti; // read-only
     private final double[] vjerojatnosti; // read-only
     private final CyclicBarrier b1, b2, b3;
     private final int id;
     private final int brojDretvi;
     private final AtomicBoolean gotovo;
     private final AtomicInteger brojač;
-    private final Lock lokotR;
-    private final Lock lokotW;
     
-    public Algoritam1v2(int brojDretvi, int id, int nVrhova,
-            TreeSet<Integer> Vp,
-            LinkedHashSet<Integer> V,
+    public Algoritam1v3(int brojDretvi, int id, int nVrhova,
+            LinkedHashSet<Integer> Vp,
+            ConcurrentSkipListSet<Integer> V,
             ConcurrentSkipListSet<Integer> X,
-            ArrayList<ArrayList<Integer>> lista, double[] vjerojatnosti,
-            TreeSet<Integer>[] vrhovi, AtomicBoolean gotovo, AtomicInteger brojač,
-            CyclicBarrier b1, CyclicBarrier b2, CyclicBarrier b3,
-            Lock lokotR, Lock lokotW) {
+            ArrayList<LinkedHashSet<Integer>> lista, double[] vjerojatnosti,
+            LinkedHashSet<Integer>[] vrhovi, AtomicBoolean gotovo, AtomicInteger brojač,
+            CyclicBarrier b1, CyclicBarrier b2, CyclicBarrier b3) {
         this.brojDretvi = brojDretvi;
         this.id = id;
         this.vrhovi = vrhovi;
@@ -72,8 +69,6 @@ public class Algoritam1v2 implements Runnable {
         this.V = V;
         this.Vp = Vp;
         this.X = X;
-        this.lokotR = lokotR;
-        this.lokotW = lokotW;
     }
 
     @Override
@@ -100,49 +95,39 @@ public class Algoritam1v2 implements Runnable {
             b1.await();
             // druga faza radi uklanjanje vrhova manjeg stupnja za bridove s vrhovima u X
         } catch (InterruptedException ex) {
-            Logger.getLogger(Algoritam1v2.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(Algoritam1v3.class.getName()).log(Level.SEVERE, null, ex);
         } catch (BrokenBarrierException ex) {
-            Logger.getLogger(Algoritam1v2.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(Algoritam1v3.class.getName()).log(Level.SEVERE, null, ex);
         }
         
-        lokotR.lock();
-            try {
-                for (int i : Vp) {
-                    for (int j : listaSusjednosti.get(i)) {
-                        if (V.contains(j) && X.contains(i) && X.contains(j)) {
-                            if (listaSusjednosti.get(i).size() <= listaSusjednosti.get(j).size()) {
-                                if (listaSusjednosti.get(i).size() < listaSusjednosti.get(j).size())
-                                    X.remove(i);
-                                else if (i < j)
-                                    X.remove(i);
-                                else
-                                    X.remove(j);
-                            }
-                            else
-                                X.remove(j);
-                        }
+        for (int i : Vp) { // TODO: optimizacija --- koristi finije zasebne r/w lokote za V umjesto korištenja ConcurrentSet
+            for (int j : listaSusjednosti.get(i)) {
+                if (V.contains(j) && X.contains(i) && X.contains(j)) {
+                    if (listaSusjednosti.get(i).size() <= listaSusjednosti.get(j).size()) {
+                        if (listaSusjednosti.get(i).size() < listaSusjednosti.get(j).size())
+                            X.remove(i);
+                        else if (i < j)
+                            X.remove(i);
+                        else
+                            X.remove(j);
                     }
-                }   } finally {
-                lokotR.unlock();
+                    else
+                        X.remove(j);
+                }
             }
+        }
         
         try {
             b2.await(); // ova će barijera na kraju izvršiti računanje unije u I na jednoj (zadnjoj) dretvi
         } catch (InterruptedException ex) {
-            Logger.getLogger(Algoritam1v2.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(Algoritam1v3.class.getName()).log(Level.SEVERE, null, ex);
         } catch (BrokenBarrierException ex) {
-            Logger.getLogger(Algoritam1v2.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(Algoritam1v3.class.getName()).log(Level.SEVERE, null, ex);
         }
         
         // treća i zadnja faza je uklanjanje X iz V
         var mojiVrhovi = vrhovi[id];
-        lokotW.lock();
-            try {
-                V.removeAll(mojiVrhovi);
-            } finally {
-                lokotW.unlock();
-            }
-            
+        V.removeAll(mojiVrhovi);
         Vp.removeAll(mojiVrhovi);
         
         if (!dretvaGotova && Vp.isEmpty()) {
@@ -153,9 +138,9 @@ public class Algoritam1v2 implements Runnable {
             try {
                 b3.await();
             } catch (InterruptedException ex) {
-                Logger.getLogger(Algoritam1v2.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(Algoritam1v3.class.getName()).log(Level.SEVERE, null, ex);
             } catch (BrokenBarrierException ex) {
-                Logger.getLogger(Algoritam1v2.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(Algoritam1v3.class.getName()).log(Level.SEVERE, null, ex);
             }
         
         }
