@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.CyclicBarrier;
@@ -108,15 +109,15 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         return I;
     }
     
-    private ConcurrentSkipListSet<Integer>[] particionirajVrhove(int k) {
-        ConcurrentSkipListSet<Integer>[] skupovi = new ConcurrentSkipListSet[k];
+    private TreeSet<Integer>[] particionirajVrhove(int k) {
+        TreeSet<Integer>[] skupovi = new TreeSet[k];
         int m = n / k;
         for (int i = 0; i < n; ++i) {
             int j = i / m;
             if (j == k)
                 k--;
             if (skupovi[j] == null)
-                skupovi[j] = new ConcurrentSkipListSet<>();
+                skupovi[j] = new TreeSet<>();
             skupovi[j].add(i);
         }
         
@@ -136,7 +137,7 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         // stroga implementacija algoritma iz [1], str. 3
         // ova implementacija koristi barijere
         final int brojDretvi = n/Runtime.getRuntime().availableProcessors() == 0 ? n : n/Runtime.getRuntime().availableProcessors();
-        final ConcurrentSkipListSet<Integer> Vp[] = particionirajVrhove(brojDretvi); // TODO: ovo uopće ne mora biti sinkronizirano?
+        final TreeSet<Integer> Vp[] = particionirajVrhove(brojDretvi);
         final ConcurrentSkipListSet<Integer> V = new ConcurrentSkipListSet<>(Arrays.asList(dajVrhove()));
         final ArrayList<Integer> I = new ArrayList<>();
         final ConcurrentSkipListSet<Integer> X = new ConcurrentSkipListSet<>();
@@ -154,18 +155,39 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         
         Runnable b2kraj = () -> {
             I.addAll(X);
-            for (int i = 0; i < brojDretvi; ++i) {
-                vrhovi[i] = new ArrayList<>(Vp[i]);
-                vrhovi[i].retainAll(X);
+            for (int i = 0; i < brojDretvi; ++i)
+                vrhovi[i] = new ArrayList<>();
+            //for (int i = 0; i < brojDretvi; ++i) {
+              //  vrhovi[i] = new ArrayList<>(Vp[i]);
+              //  vrhovi[i].retainAll(X);
+            //}
+            
+            int vel = X.size();
+            int poDretvi = vel / brojDretvi;
+            int j = 0;
+            int k = 0;
+            for (int v : X) { // TODO: paraleliziraj ovu petlju po svakoj dretvi u glavnoj klasi;
+                // ovdje neka se samo računa unija!
+                if (j < poDretvi)
+                    vrhovi[k].add(v);
+                else {
+                    vrhovi[++k].add(v);
+                    j = 0;
+                }
+                
+                ++j;
             }
+            
+            System.out.println("X:" + X.toString());
         };
         
         Runnable b3kraj = () -> {
             X.clear();
             System.out.println("kraj faze3; V="+V.toString());
             System.out.println("I="+I.toString());
+            System.out.println("brojač=" + brojačParticija.get());
             
-            if (brojačParticija.getPlain() == 0)
+            if (brojačParticija.get() == 0)
                 gotovo.set(true);
         };
             

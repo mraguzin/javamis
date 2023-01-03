@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Random;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -31,7 +32,7 @@ public class Algoritam1v1 implements Runnable {
     // bridove koje vidi su svi bridovi incidentni s gornjim vrhovima; ovo bi se moglo bolje raspodijeliti...
     private final int nIteracija = 1; // koliko puta pokušati izabrati vrh za X
     private final ConcurrentSkipListSet<Integer> V;
-    private final ConcurrentSkipListSet<Integer> Vp;
+    private final TreeSet<Integer> Vp;
     private final ConcurrentSkipListSet<Integer> X;
     private final ArrayList<ArrayList<Integer>> listaSusjednosti; // read-only
     private final double[] vjerojatnosti; // read-only
@@ -42,7 +43,7 @@ public class Algoritam1v1 implements Runnable {
     private final AtomicInteger brojač;
     
     public Algoritam1v1(int brojDretvi, int id, int nVrhova,
-            ConcurrentSkipListSet<Integer> Vp,
+            TreeSet<Integer> Vp,
             ConcurrentSkipListSet<Integer> V,
             ConcurrentSkipListSet<Integer> X,
             ArrayList<ArrayList<Integer>> lista, double[] vjerojatnosti,
@@ -67,7 +68,7 @@ public class Algoritam1v1 implements Runnable {
 
     @Override
     public void run() {
-        while (!gotovo.getPlain()) {
+        while (!gotovo.get()) {
             System.out.println(Arrays.toString(vjerojatnosti));
             System.out.println(listaSusjednosti.toString());
             System.out.println("Vp[:"+id+"]=" + Vp.toString());
@@ -122,7 +123,8 @@ public class Algoritam1v1 implements Runnable {
         
         // treća i zadnja faza je uklanjanje X iz V
         ArrayList<Integer> mojiVrhovi = vrhovi[id];
-        V.removeAll(mojiVrhovi);
+        //V.removeAll(mojiVrhovi);
+        V.removeAll(X);
         Vp.removeAll(X);
         for (int v : X) {
             var susjedi = listaSusjednosti.get(v);
