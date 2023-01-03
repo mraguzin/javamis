@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentSkipListSet;
@@ -46,7 +47,7 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         listaSusjednosti.get(j).remove(Integer.valueOf(i));
     }
     
-    public void ukloniVrh(int idx) { // PAZI: ovo efektivno *renumerira* vrhove -- bitno za GUI impl.!
+    public void ukloniVrh(int idx) { // PAZI: ovo efektivno *renumerira* vrhove --- bitno za GUI impl.!
         // prvo uklonimo sve incidentne bridove
         for (var susjed : listaSusjednosti.get(idx)) {
             int i = Collections.binarySearch(listaSusjednosti.get(susjed), idx);
@@ -144,6 +145,13 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         final double[] vjerojatnosti = new double[n];
         final AtomicInteger brojačParticija = new AtomicInteger(brojDretvi); // 0 znači da smo gotovi
         final AtomicBoolean gotovo = new AtomicBoolean(false);
+        final List<List<Integer>> kopijaListe; // nemutabilna kopija liste susjednosti
+        
+        List<List<Integer>> tmp = new ArrayList<>(listaSusjednosti.size());
+        for (var l : listaSusjednosti) {
+            tmp.add(List.copyOf(l));
+        }
+        kopijaListe = List.copyOf(tmp);
         
         for (int i = 0; i < n; ++i) {
             vjerojatnosti[i] = 1.0 / (2.0 * listaSusjednosti.get(i).size()); // tu može doći ∞ i to je ok
@@ -154,40 +162,23 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         final ArrayList<Integer>[] vrhovi = new ArrayList[brojDretvi];
         
         Runnable b2kraj = () -> {
-            I.addAll(X);
-            for (int i = 0; i < brojDretvi; ++i)
-                vrhovi[i] = new ArrayList<>();
-            //for (int i = 0; i < brojDretvi; ++i) {
-              //  vrhovi[i] = new ArrayList<>(Vp[i]);
-              //  vrhovi[i].retainAll(X);
-            //}
-            
-            int vel = X.size();
-            int poDretvi = vel / brojDretvi;
-            int j = 0;
-            int k = 0;
-            for (int v : X) { // TODO: paraleliziraj ovu petlju po svakoj dretvi u glavnoj klasi;
-                // ovdje neka se samo računa unija!
-                if (j < poDretvi)
-                    vrhovi[k].add(v);
-                else {
-                    vrhovi[++k].add(v);
-                    j = 0;
-                }
-                
-                ++j;
+            var Xstar = new ArrayList<Integer>(X);
+            for (int v : X)
+                Xstar.addAll(kopijaListe.get(v));
+            for (int i = 0; i < brojDretvi; ++i) {
+                vrhovi[i] = new ArrayList<>(Vp[i]);
+                vrhovi[i].retainAll(Xstar); // Vp ∩ X*
             }
             
-            System.out.println("X:" + X.toString());
+            I.addAll(X);
         };
         
         Runnable b3kraj = () -> {
             X.clear();
             System.out.println("kraj faze3; V="+V.toString());
             System.out.println("I="+I.toString());
-            System.out.println("brojač=" + brojačParticija.get());
             
-            if (brojačParticija.get() == 0)
+            if (brojačParticija.getPlain() == 0)
                 gotovo.set(true);
         };
             
@@ -198,13 +189,13 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         
         for (int i = 0; i < brojDretvi - 1; ++i) {
             Thread d = new Thread(new Algoritam1v1(brojDretvi, i, Vp[i].size(),
-            Vp[i], V, X, listaSusjednosti, vjerojatnosti, vrhovi, gotovo,
+            Vp[i], V, X, kopijaListe, vjerojatnosti, vrhovi, gotovo,
                     brojačParticija, b1, b2, b3));
             dretve.add(d);
             d.start();
         }
         Thread d = new Thread(new Algoritam1v1(brojDretvi, brojDretvi-1,
-                Vp[brojDretvi-1].size(), Vp[brojDretvi-1], V, X, listaSusjednosti,
+                Vp[brojDretvi-1].size(), Vp[brojDretvi-1], V, X, kopijaListe,
                 vjerojatnosti, vrhovi, gotovo, brojačParticija, b1, b2, b3));
         dretve.add(d);
         d.start();
