@@ -24,7 +24,12 @@ public class Primjer1 {
         var future = instance.parallelMIS1();
         future.run();
         result = future.get();
-        System.out.println(result.toString());        
+        System.out.println(result.toString());
+        
+        future = instance.parallelMIS2();
+        future.run();
+        result = future.get();
+        System.out.println(result.toString());
         
     }
 }
