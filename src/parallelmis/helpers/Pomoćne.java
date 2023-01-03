@@ -1,6 +1,9 @@
 package parallelmis.helpers;
 // neke pomoćne funkcije
 
+import java.util.ArrayList;
+
+
 /**
  *
  * @author mraguzin
@@ -39,5 +42,26 @@ public class Pomoćne {
             return mid;
         else
             return zadnji(A, x, mid+1, r);
+    }
+    
+    public static Integer[] presjek(int A[], int B[]) {
+        int n = A.length;
+        var C = new ArrayList<Integer>();
+        
+        int i = 0;
+        int j = 0;
+        while (i < n && j < n) {
+            if (A[i] < B[j])
+                i++;
+            else if (A[i] > B[j])
+                j++;
+            else {
+                C.add(A[i++]);
+                j++;
+            }
+        }
+        
+        Integer[] tmp = {};
+        return C.toArray(tmp);
     }
 }

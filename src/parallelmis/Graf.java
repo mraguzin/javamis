@@ -145,13 +145,6 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         final double[] vjerojatnosti = new double[n];
         final AtomicInteger brojačParticija = new AtomicInteger(brojDretvi); // 0 znači da smo gotovi
         final AtomicBoolean gotovo = new AtomicBoolean(false);
-        final List<List<Integer>> kopijaListe; // nemutabilna kopija liste susjednosti
-        
-        List<List<Integer>> tmp = new ArrayList<>(listaSusjednosti.size());
-        for (var l : listaSusjednosti) {
-            tmp.add(List.copyOf(l));
-        }
-        kopijaListe = List.copyOf(tmp);
         
         for (int i = 0; i < n; ++i) {
             vjerojatnosti[i] = 1.0 / (2.0 * listaSusjednosti.get(i).size()); // tu može doći ∞ i to je ok
@@ -159,14 +152,19 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         
         System.out.println("vjerojatnosti:" + Arrays.toString(vjerojatnosti));
         
-        final ArrayList<Integer>[] vrhovi = new ArrayList[brojDretvi];
+        final TreeSet<Integer>[] vrhovi = new TreeSet[brojDretvi]; // ideja je
+        // da ako koristimo sortiran skup, možemo u optimalnom vremenu izračunati
+        // presjeke i sl. Jesmo li sigurni da Java koristi takvu implementaciju
+        // u tom posebnom slučaju (kada su sve kolekcije sortirane)? Mogli bi
+        // jednostavno implementirati to preko polja, koristeći funkciju iz
+        // klase Pomoćne
         
         Runnable b2kraj = () -> {
-            var Xstar = new ArrayList<Integer>(X);
+            var Xstar = new TreeSet<Integer>(X);
             for (int v : X)
-                Xstar.addAll(kopijaListe.get(v));
+                Xstar.addAll(listaSusjednosti.get(v));
             for (int i = 0; i < brojDretvi; ++i) {
-                vrhovi[i] = new ArrayList<>(Vp[i]);
+                vrhovi[i] = new TreeSet<>(Vp[i]);
                 vrhovi[i].retainAll(Xstar); // Vp ∩ X*
             }
             
@@ -189,13 +187,13 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         
         for (int i = 0; i < brojDretvi - 1; ++i) {
             Thread d = new Thread(new Algoritam1v1(brojDretvi, i, Vp[i].size(),
-            Vp[i], V, X, kopijaListe, vjerojatnosti, vrhovi, gotovo,
+            Vp[i], V, X, listaSusjednosti, vjerojatnosti, vrhovi, gotovo,
                     brojačParticija, b1, b2, b3));
             dretve.add(d);
             d.start();
         }
         Thread d = new Thread(new Algoritam1v1(brojDretvi, brojDretvi-1,
-                Vp[brojDretvi-1].size(), Vp[brojDretvi-1], V, X, kopijaListe,
+                Vp[brojDretvi-1].size(), Vp[brojDretvi-1], V, X, listaSusjednosti,
                 vjerojatnosti, vrhovi, gotovo, brojačParticija, b1, b2, b3));
         dretve.add(d);
         d.start();

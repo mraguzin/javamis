@@ -27,7 +27,7 @@ import parallelmis.helpers.SharedDouble;
  */
 public class Algoritam1v1 implements Runnable {
     private int nVrhova; // vrhovi koje ova dretva vidi
-    private final ArrayList<Integer>[] vrhovi; // sadrži particiju konačnog X na dretve, za 3. fazu;
+    private final TreeSet<Integer>[] vrhovi; // sadrži particiju konačnog X na dretve, za 3. fazu;
     //particiju određuje zadnja dretva na 2. barijeri
     
     // bridove koje vidi su svi bridovi incidentni s gornjim vrhovima; ovo bi se moglo bolje raspodijeliti...
@@ -35,7 +35,7 @@ public class Algoritam1v1 implements Runnable {
     private final ConcurrentSkipListSet<Integer> V;
     private final TreeSet<Integer> Vp;
     private final ConcurrentSkipListSet<Integer> X;
-    private final List<List<Integer>> listaSusjednosti; // read-only
+    private final ArrayList<ArrayList<Integer>> listaSusjednosti; // read-only
     private final double[] vjerojatnosti; // read-only
     private final CyclicBarrier b1, b2, b3;
     private final int id;
@@ -47,8 +47,8 @@ public class Algoritam1v1 implements Runnable {
             TreeSet<Integer> Vp,
             ConcurrentSkipListSet<Integer> V,
             ConcurrentSkipListSet<Integer> X,
-            List<List<Integer>> lista, double[] vjerojatnosti,
-            ArrayList<Integer>[] vrhovi, AtomicBoolean gotovo, AtomicInteger brojač,
+            ArrayList<ArrayList<Integer>> lista, double[] vjerojatnosti,
+            TreeSet<Integer>[] vrhovi, AtomicBoolean gotovo, AtomicInteger brojač,
             CyclicBarrier b1, CyclicBarrier b2, CyclicBarrier b3) {
         this.brojDretvi = brojDretvi;
         this.id = id;
@@ -125,7 +125,7 @@ public class Algoritam1v1 implements Runnable {
         }
         
         // treća i zadnja faza je uklanjanje X iz V
-        ArrayList<Integer> mojiVrhovi = vrhovi[id];
+        var mojiVrhovi = vrhovi[id];
         V.removeAll(mojiVrhovi);
         Vp.removeAll(mojiVrhovi);
 
