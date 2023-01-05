@@ -31,5 +31,9 @@ public class Primjer1 {
         result = future.get();
         System.out.println(result.toString());
         
+        future = instance.parallelMIS3();
+        future.run();
+        result = future.get();
+        System.out.println(result.toString());        
     }
 }

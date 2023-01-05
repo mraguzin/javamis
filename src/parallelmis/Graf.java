@@ -304,6 +304,11 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         return I;        
     }
     
+    public FutureTask<ArrayList<Integer>> parallelMIS3() {
+        var c = (Callable<ArrayList<Integer>>) this::parallelMIS3impl;
+        return new FutureTask<>(c);
+    }
+    
     private ArrayList<Integer> parallelMIS3impl() {
         final int brojDretvi = Runtime.getRuntime().availableProcessors() >= n ? n : Runtime.getRuntime().availableProcessors();
         final LinkedHashSet<Integer> Vp[] = particionirajVrhove2(brojDretvi);
@@ -355,18 +360,15 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
                 long rez = tmp;
                 int limit = 0;
                 
-                boolean kraj = false;
-                    do {
+                    while (tmp != 0) {
                         gotova = Long.numberOfTrailingZeros(tmp);
                         if (gotova == 0)
                             aktivna = Long.numberOfTrailingZeros(~tmp);
-                        else if (gotova < limit)
-                            aktivna = Long.numberOfTrailingZeros(~tmp & (-1l << (limit+1)));
                         else
                             aktivna = gotova - 1;
                         
-                        if (aktivna == 64)
-                            break;                        
+                        if (aktivna >= brojDretvi || gotova >= brojDretvi)
+                            break;
                         
                         int vrhova = Vp[aktivna].size();
                         if (vrhova >= 2) {
@@ -380,17 +382,9 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
                             
                             rez &= ~(1l << gotova);
                         }
-                        else {
-                            // pokušajmo naći neku drugu aktivnu dretvu
-                            tmp |= (1l << aktivna);
-                            limit = aktivna > limit ? aktivna : limit;
-                        }
                         
                         tmp &= ~(1l << gotova);
-                        //if (tmp == 0 || aktivna == 64)
-                        if (tmp == 0)
-                            kraj = true;
-                    } while(!kraj);
+                    }
                     
                     gotoveDretve.setPlain(rez);
                 }
