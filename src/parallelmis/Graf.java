@@ -14,6 +14,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -157,7 +158,7 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
     private ArrayList<Integer> parallelMIS1impl() {
         // stroga implementacija algoritma iz [1], str. 3
         // ova implementacija koristi barijere
-        final int brojDretvi = n/Runtime.getRuntime().availableProcessors() == 0 ? n : n/Runtime.getRuntime().availableProcessors();
+        final int brojDretvi = Runtime.getRuntime().availableProcessors() >= n ? n : Runtime.getRuntime().availableProcessors();
         final TreeSet<Integer> Vp[] = particionirajVrhove(brojDretvi);
         final ConcurrentSkipListSet<Integer> V = new ConcurrentSkipListSet<>(Arrays.asList(dajVrhove()));
         final ArrayList<Integer> I = new ArrayList<>();
@@ -236,23 +237,15 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
     private ArrayList<Integer> parallelMIS2impl() {
         // stroga implementacija algoritma iz [1], str. 3
         // ova implementacija koristi barijere i finije lokote
-        final int brojDretvi = n/Runtime.getRuntime().availableProcessors() == 0 ? n : n/Runtime.getRuntime().availableProcessors();
+        final int brojDretvi = Runtime.getRuntime().availableProcessors() >= n ? n : Runtime.getRuntime().availableProcessors();
         final TreeSet<Integer> Vp[] = particionirajVrhove(brojDretvi);
         final LinkedHashSet<Integer> V = new LinkedHashSet<>(Arrays.asList(dajVrhove()));
         final ArrayList<Integer> I = new ArrayList<>();
         final ConcurrentSkipListSet<Integer> X = new ConcurrentSkipListSet<>();
-        final double[] vjerojatnosti = new double[n];
-        final AtomicInteger brojačParticija = new AtomicInteger(brojDretvi); // 0 znači da smo gotovi
         final AtomicBoolean gotovo = new AtomicBoolean(false);
         final ReadWriteLock lokot = new ReentrantReadWriteLock();
         final Lock lokotR = lokot.readLock();
         final Lock lokotW = lokot.writeLock();
-        
-        for (int i = 0; i < n; ++i) {
-            vjerojatnosti[i] = 1.0 / (2.0 * listaSusjednosti.get(i).size()); // tu može doći ∞ i to je ok
-        }
-        
-        System.out.println("vjerojatnosti:" + Arrays.toString(vjerojatnosti));
         
         final TreeSet<Integer>[] vrhovi = new TreeSet[brojDretvi]; // ideja je
         // da ako koristimo sortiran skup, možemo u optimalnom vremenu izračunati
@@ -263,22 +256,21 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         
         Runnable b2kraj = () -> {
             var Xstar = new TreeSet<Integer>(X);
-            for (int v : X)
+            for (int v : X) {
                 Xstar.addAll(listaSusjednosti.get(v));
+                I.add(v);
+            }
+                
             for (int i = 0; i < brojDretvi; ++i) {
                 vrhovi[i] = new TreeSet<>(Vp[i]);
                 vrhovi[i].retainAll(Xstar); // Vp ∩ X*
             }
-            
-            I.addAll(X);
         };
         
         Runnable b3kraj = () -> {
             X.clear();
-            System.out.println("kraj faze3; V="+V.toString());
-            System.out.println("I="+I.toString());
             
-            if (brojačParticija.getPlain() == 0)
+            if (V.isEmpty())
                 gotovo.set(true);
         };
             
@@ -289,14 +281,14 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         
         for (int i = 0; i < brojDretvi - 1; ++i) {
             Thread d = new Thread(new Algoritam1v2(brojDretvi, i, Vp[i].size(),
-            Vp[i], V, X, listaSusjednosti, vjerojatnosti, vrhovi, gotovo,
-                    brojačParticija, b1, b2, b3, lokotR, lokotW));
+            Vp[i], V, X, listaSusjednosti, vrhovi, gotovo,
+                    b1, b2, b3, lokotR, lokotW));
             dretve.add(d);
             d.start();
         }
         Thread d = new Thread(new Algoritam1v2(brojDretvi, brojDretvi-1,
                 Vp[brojDretvi-1].size(), Vp[brojDretvi-1], V, X, listaSusjednosti,
-                vjerojatnosti, vrhovi, gotovo, brojačParticija, b1, b2, b3,
+                vrhovi, gotovo, b1, b2, b3,
         lokotR, lokotW));
         
         dretve.add(d);
@@ -313,17 +305,16 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
     }
     
     private ArrayList<Integer> parallelMIS3impl() {
-        // stroga implementacija algoritma iz [1], str. 3
-        // ova implementacija koristi barijere
-        final int brojDretvi = n/Runtime.getRuntime().availableProcessors() == 0 ? n : n/Runtime.getRuntime().availableProcessors();
+        final int brojDretvi = Runtime.getRuntime().availableProcessors() >= n ? n : Runtime.getRuntime().availableProcessors();
         final LinkedHashSet<Integer> Vp[] = particionirajVrhove2(brojDretvi);
         final ConcurrentSkipListSet<Integer> V = new ConcurrentSkipListSet<>(Arrays.asList(dajVrhove()));
         final ArrayList<Integer> I = new ArrayList<>();
         final ConcurrentSkipListSet<Integer> X = new ConcurrentSkipListSet<>();
-        final double[] vjerojatnosti = new double[n];
-        final AtomicInteger brojačParticija = new AtomicInteger(brojDretvi); // 0 znači da smo gotovi
         final AtomicBoolean gotovo = new AtomicBoolean(false);
         final ArrayList<LinkedHashSet<Integer>> kopijaListe = new ArrayList<>(n); // kopija liste susjednosti
+        final AtomicLong gotoveDretve = new AtomicLong(); // 64-bitno polje; bit i je 1 akko i-ta dretva
+        // nema više posla i traži da joj se dodijele neki od preostalih vrhova iz V
+        //TODO: proširiti na polje t.d. podržava više od 64 dretvi?
         
         for (int i = 0; i < n; ++i) {
             kopijaListe.add(new LinkedHashSet<>(listaSusjednosti.get(i)));//TODO: deklarirati kopiju kao generički Set
@@ -331,12 +322,6 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
             //var tmp = kopijaListe.get(i);
             //kopijaListe.set(i, Set.copyOf(tmp));
         }
-        
-        for (int i = 0; i < n; ++i) {
-            vjerojatnosti[i] = 1.0 / (2.0 * listaSusjednosti.get(i).size()); // tu može doći ∞ i to je ok
-        }
-        
-        System.out.println("vjerojatnosti:" + Arrays.toString(vjerojatnosti));
         
         final LinkedHashSet<Integer>[] vrhovi = new LinkedHashSet[brojDretvi]; // ideja je
         // da ako koristimo sortiran skup, možemo u optimalnom vremenu izračunati
@@ -347,23 +332,68 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         
         Runnable b2kraj = () -> {
             var Xstar = new LinkedHashSet<Integer>(X);
-            for (int v : X)
+            for (int v : X) {
+                I.add(v);
                 Xstar.addAll(kopijaListe.get(v));
+            }
+                
             for (int i = 0; i < brojDretvi; ++i) {
                 vrhovi[i] = new LinkedHashSet<>(Vp[i]);
                 vrhovi[i].retainAll(Xstar); // Vp ∩ X*
             }
-            
-            I.addAll(X);
         };
         
         Runnable b3kraj = () -> {
             X.clear();
-            System.out.println("kraj faze3; V="+V.toString());
-            System.out.println("I="+I.toString());
             
-            if (brojačParticija.getPlain() == 0)
+            if (V.isEmpty())
                 gotovo.set(true);
+            else {
+                long tmp = gotoveDretve.getPlain();
+                int gotova;
+                int aktivna;
+                long rez = tmp;
+                int limit = 0;
+                
+                boolean kraj = false;
+                    do {
+                        gotova = Long.numberOfTrailingZeros(tmp);
+                        if (gotova == 0)
+                            aktivna = Long.numberOfTrailingZeros(~tmp);
+                        else if (gotova < limit)
+                            aktivna = Long.numberOfTrailingZeros(~tmp & (-1l << (limit+1)));
+                        else
+                            aktivna = gotova - 1;
+                        
+                        if (aktivna == 64)
+                            break;                        
+                        
+                        int vrhova = Vp[aktivna].size();
+                        if (vrhova >= 2) {
+                            limit = gotova > limit ? gotova : limit;
+                            var it = Vp[aktivna].iterator();
+                            for (int i = 0; i < vrhova/2; ++i) {
+                                int el = it.next();
+                                Vp[gotova].add(el);
+                                Vp[aktivna].remove(el);
+                            }
+                            
+                            rez &= ~(1l << gotova);
+                        }
+                        else {
+                            // pokušajmo naći neku drugu aktivnu dretvu
+                            tmp |= (1l << aktivna);
+                            limit = aktivna > limit ? aktivna : limit;
+                        }
+                        
+                        tmp &= ~(1l << gotova);
+                        //if (tmp == 0 || aktivna == 64)
+                        if (tmp == 0)
+                            kraj = true;
+                    } while(!kraj);
+                    
+                    gotoveDretve.setPlain(rez);
+                }
         };
             
         CyclicBarrier b1 = new CyclicBarrier(brojDretvi);
@@ -373,14 +403,13 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         
         for (int i = 0; i < brojDretvi - 1; ++i) {
             Thread d = new Thread(new Algoritam1v3(brojDretvi, i, Vp[i].size(),
-            Vp[i], V, X, kopijaListe, vjerojatnosti, vrhovi, gotovo,
-                    brojačParticija, b1, b2, b3));
+            Vp[i], V, X, kopijaListe, vrhovi, gotovo, gotoveDretve, b1, b2, b3));
             dretve.add(d);
             d.start();
         }
         Thread d = new Thread(new Algoritam1v3(brojDretvi, brojDretvi-1,
                 Vp[brojDretvi-1].size(), Vp[brojDretvi-1], V, X, kopijaListe,
-                vjerojatnosti, vrhovi, gotovo, brojačParticija, b1, b2, b3));
+                vrhovi, gotovo, gotoveDretve, b1, b2, b3));
         dretve.add(d);
         d.start();
         

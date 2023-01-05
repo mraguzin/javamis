@@ -17,6 +17,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import parallelmis.helpers.Pomoćne;
@@ -41,30 +42,29 @@ public class Algoritam1v3 implements Runnable {
     private final LinkedHashSet<Integer> Vp;
     private final ConcurrentSkipListSet<Integer> X;
     private final ArrayList<LinkedHashSet<Integer>> listaSusjednosti; // read-only
-    private final double[] vjerojatnosti; // read-only
     private final CyclicBarrier b1, b2, b3;
     private final int id;
     private final int brojDretvi;
     private final AtomicBoolean gotovo;
-    private final AtomicInteger brojač;
+    private final AtomicLong gotoveDretve;
     
     public Algoritam1v3(int brojDretvi, int id, int nVrhova,
             LinkedHashSet<Integer> Vp,
             ConcurrentSkipListSet<Integer> V,
             ConcurrentSkipListSet<Integer> X,
-            ArrayList<LinkedHashSet<Integer>> lista, double[] vjerojatnosti,
-            LinkedHashSet<Integer>[] vrhovi, AtomicBoolean gotovo, AtomicInteger brojač,
+            ArrayList<LinkedHashSet<Integer>> lista,
+            LinkedHashSet<Integer>[] vrhovi, AtomicBoolean gotovo,
+            AtomicLong gotoveDretve,
             CyclicBarrier b1, CyclicBarrier b2, CyclicBarrier b3) {
         this.brojDretvi = brojDretvi;
         this.id = id;
         this.vrhovi = vrhovi;
         this.gotovo = gotovo;
-        this.brojač = brojač;
+        this.gotoveDretve = gotoveDretve;
         this.b1 = b1;
         this.b2 = b2;
         this.b3 = b3;
         this.nVrhova = nVrhova;
-        this.vjerojatnosti = vjerojatnosti;
         this.listaSusjednosti = lista;
         this.V = V;
         this.Vp = Vp;
@@ -73,17 +73,16 @@ public class Algoritam1v3 implements Runnable {
 
     @Override
     public void run() {
-        boolean dretvaGotova = false;
-        
         while (!gotovo.getPlain()) {
         // prva faza radi random odabir vrhova iz zadanog podskupa za staviti u skup X
         // svaka odluka odabira je nezavisna od drugih i ima vjerojatnost 1/(2d(v)) za vrh v
         
         for (int i = 0; i < nIteracija; ++i) {
             for (int v : Vp) {
-                if (vjerojatnosti[v] < Double.POSITIVE_INFINITY) {
+                double p = 1.0 / (2.0 * listaSusjednosti.get(v).size());
+                if (p < Double.POSITIVE_INFINITY) {
                     double odabir = ThreadLocalRandom.current().nextDouble();
-                    if (vjerojatnosti[v] < odabir)
+                    if (p < odabir)
                         X.add(v);
                     }
                 else
@@ -100,7 +99,7 @@ public class Algoritam1v3 implements Runnable {
             Logger.getLogger(Algoritam1v3.class.getName()).log(Level.SEVERE, null, ex);
         }
         
-        for (int i : Vp) { // TODO: optimizacija --- koristi finije zasebne r/w lokote za V umjesto korištenja ConcurrentSet
+        for (int i : Vp) { // TODO: optimizacija(?) --- koristi finije zasebne r/w lokote za V umjesto korištenja ConcurrentSet
             for (int j : listaSusjednosti.get(i)) {
                 if (V.contains(j) && X.contains(i) && X.contains(j)) {
                     if (listaSusjednosti.get(i).size() <= listaSusjednosti.get(j).size()) {
@@ -130,9 +129,13 @@ public class Algoritam1v3 implements Runnable {
         V.removeAll(mojiVrhovi);
         Vp.removeAll(mojiVrhovi);
         
-        if (!dretvaGotova && Vp.isEmpty()) {
-            dretvaGotova = true;
-            brojač.decrementAndGet();
+        //if ((gotoveDretve.get() & (1 << id)) != 0 && Vp.isEmpty()) { // TODO: ovdje bi trebalo biti ok koristiti getPlain
+        if (Vp.isEmpty()) { // TODO: ovdje bi trebalo biti ok koristiti getPlain
+            gotoveDretve.accumulateAndGet(id, (long x, long y) -> {
+                long res = x;
+                res |= 1l << y;
+                return res;
+            });
         }
         
             try {

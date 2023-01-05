@@ -41,12 +41,10 @@ public class Algoritam1v2 implements Runnable {
     private final TreeSet<Integer> Vp;
     private final ConcurrentSkipListSet<Integer> X;
     private final ArrayList<ArrayList<Integer>> listaSusjednosti; // read-only
-    private final double[] vjerojatnosti; // read-only
     private final CyclicBarrier b1, b2, b3;
     private final int id;
     private final int brojDretvi;
     private final AtomicBoolean gotovo;
-    private final AtomicInteger brojač;
     private final Lock lokotR;
     private final Lock lokotW;
     
@@ -54,20 +52,18 @@ public class Algoritam1v2 implements Runnable {
             TreeSet<Integer> Vp,
             LinkedHashSet<Integer> V,
             ConcurrentSkipListSet<Integer> X,
-            ArrayList<ArrayList<Integer>> lista, double[] vjerojatnosti,
-            TreeSet<Integer>[] vrhovi, AtomicBoolean gotovo, AtomicInteger brojač,
+            ArrayList<ArrayList<Integer>> lista,
+            TreeSet<Integer>[] vrhovi, AtomicBoolean gotovo,
             CyclicBarrier b1, CyclicBarrier b2, CyclicBarrier b3,
             Lock lokotR, Lock lokotW) {
         this.brojDretvi = brojDretvi;
         this.id = id;
         this.vrhovi = vrhovi;
         this.gotovo = gotovo;
-        this.brojač = brojač;
         this.b1 = b1;
         this.b2 = b2;
         this.b3 = b3;
         this.nVrhova = nVrhova;
-        this.vjerojatnosti = vjerojatnosti;
         this.listaSusjednosti = lista;
         this.V = V;
         this.Vp = Vp;
@@ -78,17 +74,16 @@ public class Algoritam1v2 implements Runnable {
 
     @Override
     public void run() {
-        boolean dretvaGotova = false;
-        
         while (!gotovo.getPlain()) {
         // prva faza radi random odabir vrhova iz zadanog podskupa za staviti u skup X
         // svaka odluka odabira je nezavisna od drugih i ima vjerojatnost 1/(2d(v)) za vrh v
         
         for (int i = 0; i < nIteracija; ++i) {
             for (int v : Vp) {
-                if (vjerojatnosti[v] < Double.POSITIVE_INFINITY) {
+                double p = 1.0 / (2.0 * listaSusjednosti.get(v).size());
+                if (p < Double.POSITIVE_INFINITY) {
                     double odabir = ThreadLocalRandom.current().nextDouble();
-                    if (vjerojatnosti[v] < odabir)
+                    if (p < odabir)
                         X.add(v);
                     }
                 else
@@ -144,11 +139,6 @@ public class Algoritam1v2 implements Runnable {
             }
             
         Vp.removeAll(mojiVrhovi);
-        
-        if (!dretvaGotova && Vp.isEmpty()) {
-            dretvaGotova = true;
-            brojač.decrementAndGet();
-        }
         
             try {
                 b3.await();
