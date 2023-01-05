@@ -38,7 +38,7 @@ public class Algoritam1v2 implements Runnable {
     // bridove koje vidi su svi bridovi incidentni s gornjim vrhovima; ovo bi se moglo bolje raspodijeliti...
     private final int nIteracija = 1; // koliko puta pokušati izabrati vrh za X
     private final LinkedHashSet<Integer> V;
-    private final TreeSet<Integer> Vp;
+    private final LinkedHashSet<Integer> Vp;
     private final ConcurrentSkipListSet<Integer> X;
     private final ArrayList<ArrayList<Integer>> listaSusjednosti; // read-only
     private final CyclicBarrier b1, b2, b3;
@@ -49,7 +49,7 @@ public class Algoritam1v2 implements Runnable {
     private final Lock lokotW;
     
     public Algoritam1v2(int brojDretvi, int id, int nVrhova,
-            TreeSet<Integer> Vp,
+            LinkedHashSet<Integer> Vp,
             LinkedHashSet<Integer> V,
             ConcurrentSkipListSet<Integer> X,
             ArrayList<ArrayList<Integer>> lista,

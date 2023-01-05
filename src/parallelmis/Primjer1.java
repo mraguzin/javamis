@@ -1,6 +1,6 @@
 package parallelmis;
 
-import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -16,8 +16,8 @@ public class Primjer1 {
         instance.dodajVrh();
         instance.dodajBrid(0, 1);
         instance.dodajBrid(1, 2);
-        //ArrayList<Integer> expResult = null;
-        ArrayList<Integer> result = instance.sequentialMIS();
+
+        List<Integer> result = instance.sequentialMIS();
         //assertEquals(expResult, result);
         System.out.println(result.toString());
         

@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.FutureTask;
@@ -25,6 +26,7 @@ import parallelmis.helpers.SharedDouble;
 /**
  *
  * @author mraguzin
+ * [1] https://disco.ethz.ch/alumni/pascalv/refs/mis_1986_luby.pdf
  */
 public class Graf { // graf je napravljen da bude mutabilan tako da se lako
     // modificira od strane GUI-ja i dalje smatra istim objektom, ali zbog
@@ -146,8 +148,8 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         return skupovi;
     }
     
-    public FutureTask<ArrayList<Integer>> parallelMIS1() {
-        var c = (Callable<ArrayList<Integer>>) this::parallelMIS1impl;        
+    public FutureTask<List<Integer>> parallelMIS1() {
+        var c = (Callable<List<Integer>>) this::parallelMIS1impl;        
         return new FutureTask<>(c);
     }
     
@@ -155,7 +157,7 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
     // algoritmima za MIS; svaka metoda koristi svoj vlastiti način višedretvene
     // organizacije posla
     
-    private ArrayList<Integer> parallelMIS1impl() {
+    private List<Integer> parallelMIS1impl() {
         // stroga implementacija algoritma iz [1], str. 3
         // ova implementacija koristi barijere
         final int brojDretvi = Runtime.getRuntime().availableProcessors() >= n ? n : Runtime.getRuntime().availableProcessors();
@@ -229,16 +231,16 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         return I;        
     }
     
-    public FutureTask<ArrayList<Integer>> parallelMIS2() {
-        var c = (Callable<ArrayList<Integer>>) this::parallelMIS2impl;        
+    public FutureTask<List<Integer>> parallelMIS2() {
+        var c = (Callable<List<Integer>>) this::parallelMIS2impl;        
         return new FutureTask<>(c);
     }
     
-    private ArrayList<Integer> parallelMIS2impl() {
+    private List<Integer> parallelMIS2impl() {
         // stroga implementacija algoritma iz [1], str. 3
         // ova implementacija koristi barijere i finije lokote
         final int brojDretvi = Runtime.getRuntime().availableProcessors() >= n ? n : Runtime.getRuntime().availableProcessors();
-        final TreeSet<Integer> Vp[] = particionirajVrhove(brojDretvi);
+        final LinkedHashSet<Integer> Vp[] = particionirajVrhove2(brojDretvi);
         final LinkedHashSet<Integer> V = new LinkedHashSet<>(Arrays.asList(dajVrhove()));
         final ArrayList<Integer> I = new ArrayList<>();
         final ConcurrentSkipListSet<Integer> X = new ConcurrentSkipListSet<>();
@@ -304,12 +306,12 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         return I;        
     }
     
-    public FutureTask<ArrayList<Integer>> parallelMIS3() {
-        var c = (Callable<ArrayList<Integer>>) this::parallelMIS3impl;
+    public FutureTask<List<Integer>> parallelMIS3() {
+        var c = (Callable<List<Integer>>) this::parallelMIS3impl;
         return new FutureTask<>(c);
     }
     
-    private ArrayList<Integer> parallelMIS3impl() {
+    private List<Integer> parallelMIS3impl() {
         final int brojDretvi = Runtime.getRuntime().availableProcessors() >= n ? n : Runtime.getRuntime().availableProcessors();
         final LinkedHashSet<Integer> Vp[] = particionirajVrhove2(brojDretvi);
         final ConcurrentSkipListSet<Integer> V = new ConcurrentSkipListSet<>(Arrays.asList(dajVrhove()));
@@ -322,10 +324,7 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         //TODO: proširiti na polje t.d. podržava više od 64 dretvi?
         
         for (int i = 0; i < n; ++i) {
-            kopijaListe.add(new LinkedHashSet<>(listaSusjednosti.get(i)));//TODO: deklarirati kopiju kao generički Set
-            // t.d. možemo koristiti Set.copyOf() radi kreiranja nemutabilnog skupa?
-            //var tmp = kopijaListe.get(i);
-            //kopijaListe.set(i, Set.copyOf(tmp));
+            kopijaListe.add(new LinkedHashSet<>(listaSusjednosti.get(i)));
         }
         
         final LinkedHashSet<Integer>[] vrhovi = new LinkedHashSet[brojDretvi]; // ideja je
@@ -414,7 +413,96 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
                 Logger.getLogger(Graf.class.getName()).log(Level.SEVERE, null, ex);
             }
         
-        return I;        
+        return I;
+    }
+    
+    public FutureTask<List<Integer>> parallelMIS4() {
+        var c = (Callable<List<Integer>>) this::parallelMIS4impl;
+        return new FutureTask<>(c);
+    }
+    
+    private List<Integer> parallelMIS4impl() {
+        // ova implementacija ne koristi barijere i...
+        final int brojDretvi = Runtime.getRuntime().availableProcessors() >= n ? n : Runtime.getRuntime().availableProcessors();
+        final LinkedHashSet<Integer> Vp[] = particionirajVrhove2(brojDretvi);
+        final ConcurrentSkipListSet<Integer> V = new ConcurrentSkipListSet<>(Arrays.asList(dajVrhove()));
+        final ConcurrentLinkedQueue<Integer> I = new ConcurrentLinkedQueue<>();
+        final ConcurrentSkipListSet<Integer> X = new ConcurrentSkipListSet<>();
+        final AtomicBoolean gotovo = new AtomicBoolean(false);
+        final ArrayList<LinkedHashSet<Integer>> kopijaListe = new ArrayList<>(n);
+        final AtomicLong gotoveDretve = new AtomicLong();
+        
+        for (int i = 0; i < n; ++i) {
+            kopijaListe.add(new LinkedHashSet<>(listaSusjednosti.get(i)));
+        }
+        
+        Runnable b3kraj = () -> {
+            X.clear();
+            
+            if (V.isEmpty())
+                gotovo.set(true);
+            else {
+                long tmp = gotoveDretve.getPlain();
+                int gotova;
+                int aktivna;
+                long rez = tmp;
+                int limit = 0;
+                
+                    while (tmp != 0) {
+                        gotova = Long.numberOfTrailingZeros(tmp);
+                        if (gotova == 0)
+                            aktivna = Long.numberOfTrailingZeros(~tmp);
+                        else
+                            aktivna = gotova - 1;
+                        
+                        if (aktivna >= brojDretvi || gotova >= brojDretvi)
+                            break;
+                        
+                        int vrhova = Vp[aktivna].size();
+                        if (vrhova >= 2) {
+                            limit = gotova > limit ? gotova : limit;
+                            var it = Vp[aktivna].iterator();
+                            for (int i = 0; i < vrhova/2; ++i) {
+                                int el = it.next();
+                                Vp[gotova].add(el);
+                                Vp[aktivna].remove(el);
+                            }
+                            
+                            rez &= ~(1l << gotova);
+                        }
+                        
+                        tmp &= ~(1l << gotova);
+                    }
+                    
+                    gotoveDretve.setPlain(rez);
+                }
+        };
+            
+        CyclicBarrier b1 = new CyclicBarrier(brojDretvi);
+        CyclicBarrier b2 = new CyclicBarrier(brojDretvi);
+        CyclicBarrier b3 = new CyclicBarrier(brojDretvi);
+        List<Thread> dretve = new ArrayList<>(brojDretvi);
+        
+        for (int i = 0; i < brojDretvi - 1; ++i) {
+            Thread d = new Thread(new Algoritam1v4(brojDretvi, i, Vp[i].size(),
+            Vp[i], V, I, X, kopijaListe, gotovo, gotoveDretve, b1, b2, b3));
+            dretve.add(d);
+            d.start();
+        }
+        Thread d = new Thread(new Algoritam1v4(brojDretvi, brojDretvi-1,
+                Vp[brojDretvi-1].size(), Vp[brojDretvi-1], V, I, X, kopijaListe,
+                gotovo, gotoveDretve, b1, b2, b3));
+        dretve.add(d);
+        d.start();
+        
+        for (Thread i : dretve)
+            try {
+                i.join();
+            } catch (InterruptedException ex) {
+                Logger.getLogger(Graf.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        
+        return List.copyOf(I);
     }
     
 }

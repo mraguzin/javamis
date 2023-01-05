@@ -1,6 +1,6 @@
 package parallelmis;
 
-import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -33,7 +33,7 @@ public class Primjer2 {
         kocka.dodajBrid(7, 5);
         kocka.dodajBrid(3, 7);
         
-        ArrayList<Integer> result = kocka.sequentialMIS();
+        List<Integer> result = kocka.sequentialMIS();
         System.out.println(result.toString());
         
         var future = kocka.parallelMIS2();
@@ -42,6 +42,11 @@ public class Primjer2 {
         System.out.println(result.toString());
         
         future = kocka.parallelMIS3();
+        future.run();
+        result = future.get();
+        System.out.println(result.toString());
+        
+        future = kocka.parallelMIS4();
         future.run();
         result = future.get();
         System.out.println(result.toString());
