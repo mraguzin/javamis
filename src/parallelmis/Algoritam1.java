@@ -187,6 +187,7 @@ public abstract class Algoritam1 {
         return skupovi;
     }
         
+    // sigh...
     protected List<LinkedHashSet<Integer>> particionirajVrhove2(int k) {
         var skupovi = new ArrayList<LinkedHashSet<Integer>>(k);
         for (int i = 0; i < k; ++i)
