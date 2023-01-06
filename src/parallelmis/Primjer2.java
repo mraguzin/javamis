@@ -1,6 +1,7 @@
 package parallelmis;
 
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -46,9 +47,13 @@ public class Primjer2 {
         result = future.get();
         System.out.println(result.toString());
         
-        future = kocka.parallelMIS4();
+        future = kocka.parallelMIS5();
         future.run();
         result = future.get();
         System.out.println(result.toString());
+        
+        future = kocka.parallelMIS4();
+        future.run();
+        System.out.println(Set.copyOf(result).toString());
     }
 }

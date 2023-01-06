@@ -24,21 +24,15 @@ import java.util.logging.Logger;
 /**
  *
  * @author mraguzin
- * Ova varijanta koristi privremene sortirane nemutabilne kopije liste
- * susjednosti. Također, implementirana je neka vrsta "work-stealing"
- * pristupa kada neka od dretvi više nema posla
- * (prošle varijante tada jednostavno besposleno prolaze kroz barijere).
+ * Ova je malo optimizirana varijanta v3: ne računa particiju X-a zasebno na
+ * barijeri već račun V\X paralelizira na sve dretve.
  */
-public class Algoritam1v3 implements Runnable {
-    private int nVrhova; // vrhovi koje ova dretva vidi
-    private final LinkedHashSet<Integer>[] vrhovi; // sadrži particiju konačnog X na dretve, za 3. fazu;
-    //particiju određuje zadnja dretva na 2. barijeri
-    
-    // bridove koje vidi su svi bridovi incidentni s gornjim vrhovima; ovo bi se moglo bolje raspodijeliti...
+public class Algoritam1v5 implements Runnable {
     private final int nIteracija = 1; // koliko puta pokušati izabrati vrh za X
     private final ConcurrentSkipListSet<Integer> V;
     private final LinkedHashSet<Integer> Vp;
     private final ConcurrentSkipListSet<Integer> X;
+    private final LinkedHashSet<Integer> Xstar;
     private final ArrayList<LinkedHashSet<Integer>> listaSusjednosti; // read-only
     private final CyclicBarrier b1, b2, b3;
     private final int id;
@@ -46,27 +40,26 @@ public class Algoritam1v3 implements Runnable {
     private final AtomicBoolean gotovo;
     private final AtomicLong gotoveDretve;
     
-    public Algoritam1v3(int brojDretvi, int id, int nVrhova,
+    public Algoritam1v5(int brojDretvi, int id, int nVrhova,
             LinkedHashSet<Integer> Vp,
             ConcurrentSkipListSet<Integer> V,
             ConcurrentSkipListSet<Integer> X,
             ArrayList<LinkedHashSet<Integer>> lista,
-            LinkedHashSet<Integer>[] vrhovi, AtomicBoolean gotovo,
+            LinkedHashSet<Integer> Xstar, AtomicBoolean gotovo,
             AtomicLong gotoveDretve,
             CyclicBarrier b1, CyclicBarrier b2, CyclicBarrier b3) {
         this.brojDretvi = brojDretvi;
         this.id = id;
-        this.vrhovi = vrhovi;
         this.gotovo = gotovo;
         this.gotoveDretve = gotoveDretve;
         this.b1 = b1;
         this.b2 = b2;
         this.b3 = b3;
-        this.nVrhova = nVrhova;
         this.listaSusjednosti = lista;
         this.V = V;
         this.Vp = Vp;
         this.X = X;
+        this.Xstar = Xstar;
     }
 
     @Override
@@ -92,9 +85,9 @@ public class Algoritam1v3 implements Runnable {
             b1.await();
             // druga faza radi uklanjanje vrhova manjeg stupnja za bridove s vrhovima u X
         } catch (InterruptedException ex) {
-            Logger.getLogger(Algoritam1v3.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(Algoritam1v5.class.getName()).log(Level.SEVERE, null, ex);
         } catch (BrokenBarrierException ex) {
-            Logger.getLogger(Algoritam1v3.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(Algoritam1v5.class.getName()).log(Level.SEVERE, null, ex);
         }
         
         for (int i : Vp) {
@@ -117,18 +110,15 @@ public class Algoritam1v3 implements Runnable {
         try {
             b2.await(); // ova će barijera na kraju izvršiti računanje unije u I na jednoj (zadnjoj) dretvi
         } catch (InterruptedException ex) {
-            Logger.getLogger(Algoritam1v3.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(Algoritam1v5.class.getName()).log(Level.SEVERE, null, ex);
         } catch (BrokenBarrierException ex) {
-            Logger.getLogger(Algoritam1v3.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(Algoritam1v5.class.getName()).log(Level.SEVERE, null, ex);
         }
         
         // treća i zadnja faza je uklanjanje X iz V
-        var mojiVrhovi = vrhovi[id];
-        V.removeAll(mojiVrhovi);
-        Vp.removeAll(mojiVrhovi);
+        Vp.removeAll(Xstar);
         
-        //if ((gotoveDretve.get() & (1 << id)) != 0 && Vp.isEmpty()) { // TODO: ovdje bi trebalo biti ok koristiti getPlain
-        if (Vp.isEmpty()) { // TODO: ovdje bi trebalo biti ok koristiti getPlain
+        if (Vp.isEmpty()) {
             gotoveDretve.accumulateAndGet(id, (long x, long y) -> {
                 long res = x;
                 res |= 1l << y;
@@ -139,9 +129,9 @@ public class Algoritam1v3 implements Runnable {
             try {
                 b3.await();
             } catch (InterruptedException ex) {
-                Logger.getLogger(Algoritam1v3.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(Algoritam1v5.class.getName()).log(Level.SEVERE, null, ex);
             } catch (BrokenBarrierException ex) {
-                Logger.getLogger(Algoritam1v3.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(Algoritam1v5.class.getName()).log(Level.SEVERE, null, ex);
             }
         
         }

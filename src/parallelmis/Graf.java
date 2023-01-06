@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.Phaser;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -422,22 +423,118 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
     }
     
     private List<Integer> parallelMIS4impl() {
-        // ova implementacija ne koristi barijere i...
+        // Ova implementacija ne koristi barijere, već samo dva Phasera
+        // kojim se regulira prolaz kroz tri faze, s tim da zadnja faza
+        // sada ne zahtijeva posebnu sinkronizaciju (uočimo da u [1] nije nužno
+        // čekati da se X u potpunosti očisti prije početka sljedeće iteracije
+        // petlje), zbog čega je moguće da jedna od dretvi završi (isprazni V)
+        // s drugim dretvama u nekim drugim fazama. Zato moramo terminirati
+        // čekanje na ostalim točkama, što je moguće koristeći Phaser.
         final int brojDretvi = Runtime.getRuntime().availableProcessors() >= n ? n : Runtime.getRuntime().availableProcessors();
         final LinkedHashSet<Integer> Vp[] = particionirajVrhove2(brojDretvi);
         final ConcurrentSkipListSet<Integer> V = new ConcurrentSkipListSet<>(Arrays.asList(dajVrhove()));
         final ConcurrentLinkedQueue<Integer> I = new ConcurrentLinkedQueue<>();
         final ConcurrentSkipListSet<Integer> X = new ConcurrentSkipListSet<>();
+        final LinkedHashSet<Integer> Xstar = new LinkedHashSet<>();
         final AtomicBoolean gotovo = new AtomicBoolean(false);
         final ArrayList<LinkedHashSet<Integer>> kopijaListe = new ArrayList<>(n);
         final AtomicLong gotoveDretve = new AtomicLong();
+        final AtomicInteger brojač = new AtomicInteger(brojDretvi);
         
         for (int i = 0; i < n; ++i) {
             kopijaListe.add(new LinkedHashSet<>(listaSusjednosti.get(i)));
         }
         
+        Runnable b2kraj = () -> {
+            Xstar.clear();
+            
+            for (int v : X) {
+                I.add(v);
+                Xstar.add(v);
+                Xstar.addAll(kopijaListe.get(v));
+            }
+        };
+        
         Runnable b3kraj = () -> {
+            V.removeAll(Xstar);
             X.clear();
+            Xstar.clear();
+        };
+
+        Phaser phaser1 = new Phaser(brojDretvi) {
+            @Override
+            protected boolean onAdvance(int phase, int registered) {
+                return false;
+            }
+        };
+        
+        Phaser phaser2 = new Phaser(brojDretvi) {
+            @Override
+            protected boolean onAdvance(int phase, int registered) {
+                b2kraj.run();
+                
+                return false;
+            }
+        };
+        
+        List<Thread> dretve = new ArrayList<>(brojDretvi);
+        
+        for (int i = 0; i < brojDretvi - 1; ++i) {
+            Thread d = new Thread(new Algoritam1v4(brojDretvi, i, Vp[i].size(),
+            Vp[i], V, I, X, Xstar, kopijaListe, gotovo, gotoveDretve, brojač,
+                    phaser1, phaser2));
+            dretve.add(d);
+            d.start();
+        }
+        Thread d = new Thread(new Algoritam1v4(brojDretvi, brojDretvi-1,
+                Vp[brojDretvi-1].size(), Vp[brojDretvi-1], V, I, X, Xstar, kopijaListe,
+                gotovo, gotoveDretve, brojač, phaser1, phaser2));
+        dretve.add(d);
+        d.start();
+        
+        for (Thread i : dretve)
+            try {
+                i.join();
+            } catch (InterruptedException ex) {
+                Logger.getLogger(Graf.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        
+        return List.copyOf(I);
+    }
+    
+    public FutureTask<List<Integer>> parallelMIS5() {
+        var c = (Callable<List<Integer>>) this::parallelMIS5impl;
+        return new FutureTask<>(c);
+    }
+    
+    private List<Integer> parallelMIS5impl() {
+        final int brojDretvi = Runtime.getRuntime().availableProcessors() >= n ? n : Runtime.getRuntime().availableProcessors();
+        final LinkedHashSet<Integer> Vp[] = particionirajVrhove2(brojDretvi);
+        final ConcurrentSkipListSet<Integer> V = new ConcurrentSkipListSet<>(Arrays.asList(dajVrhove()));
+        final ArrayList<Integer> I = new ArrayList<>();
+        final ConcurrentSkipListSet<Integer> X = new ConcurrentSkipListSet<>();
+        final LinkedHashSet<Integer> Xstar = new LinkedHashSet<>();
+        final AtomicBoolean gotovo = new AtomicBoolean(false);
+        final ArrayList<LinkedHashSet<Integer>> kopijaListe = new ArrayList<>(n); // kopija liste susjednosti
+        final AtomicLong gotoveDretve = new AtomicLong(); // 64-bitno polje; bit i je 1 akko i-ta dretva
+        // nema više posla i traži da joj se dodijele neki od preostalih vrhova iz V
+        
+        for (int i = 0; i < n; ++i) {
+            kopijaListe.add(new LinkedHashSet<>(listaSusjednosti.get(i)));
+        }
+        
+        Runnable b2kraj = () -> {
+            for (int v : X) {
+                I.add(v);
+                Xstar.add(v);
+                Xstar.addAll(kopijaListe.get(v));
+            }
+        };
+        
+        Runnable b3kraj = () -> {
+            V.removeAll(Xstar);
+            X.clear();
+            Xstar.clear();
             
             if (V.isEmpty())
                 gotovo.set(true);
@@ -479,19 +576,19 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         };
             
         CyclicBarrier b1 = new CyclicBarrier(brojDretvi);
-        CyclicBarrier b2 = new CyclicBarrier(brojDretvi);
-        CyclicBarrier b3 = new CyclicBarrier(brojDretvi);
+        CyclicBarrier b2 = new CyclicBarrier(brojDretvi, b2kraj);
+        CyclicBarrier b3 = new CyclicBarrier(brojDretvi, b3kraj);
         List<Thread> dretve = new ArrayList<>(brojDretvi);
         
         for (int i = 0; i < brojDretvi - 1; ++i) {
-            Thread d = new Thread(new Algoritam1v4(brojDretvi, i, Vp[i].size(),
-            Vp[i], V, I, X, kopijaListe, gotovo, gotoveDretve, b1, b2, b3));
+            Thread d = new Thread(new Algoritam1v5(brojDretvi, i, Vp[i].size(),
+            Vp[i], V, X, kopijaListe, Xstar, gotovo, gotoveDretve, b1, b2, b3));
             dretve.add(d);
             d.start();
         }
-        Thread d = new Thread(new Algoritam1v4(brojDretvi, brojDretvi-1,
-                Vp[brojDretvi-1].size(), Vp[brojDretvi-1], V, I, X, kopijaListe,
-                gotovo, gotoveDretve, b1, b2, b3));
+        Thread d = new Thread(new Algoritam1v5(brojDretvi, brojDretvi-1,
+                Vp[brojDretvi-1].size(), Vp[brojDretvi-1], V, X, kopijaListe,
+                Xstar, gotovo, gotoveDretve, b1, b2, b3));
         dretve.add(d);
         d.start();
         
