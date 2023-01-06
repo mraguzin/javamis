@@ -2,6 +2,7 @@ package parallelmis;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -19,6 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import parallelmis.helpers.Pomoćne;
@@ -30,50 +32,30 @@ import parallelmis.helpers.SharedDouble;
  * Ova varijanta paralalenog MIS algoritma koristi finije lokote za zaštitu skupa
  * V umjesto da za taj skup koristi neku Concurrent kolekciju.
  */
-public class Algoritam1v2 implements Runnable {
-    private int nVrhova; // vrhovi koje ova dretva vidi
-    private final TreeSet<Integer>[] vrhovi; // sadrži particiju konačnog X na dretve, za 3. fazu;
-    //particiju određuje zadnja dretva na 2. barijeri
-    
+public class Algoritam1v2 extends Algoritam1 {    
     // bridove koje vidi su svi bridovi incidentni s gornjim vrhovima; ovo bi se moglo bolje raspodijeliti...
-    private final int nIteracija = 1; // koliko puta pokušati izabrati vrh za X
-    private final LinkedHashSet<Integer> V;
-    private final LinkedHashSet<Integer> Vp;
-    private final ConcurrentSkipListSet<Integer> X;
-    private final ArrayList<ArrayList<Integer>> listaSusjednosti; // read-only
-    private final CyclicBarrier b1, b2, b3;
-    private final int id;
-    private final int brojDretvi;
-    private final AtomicBoolean gotovo;
-    private final Lock lokotR;
-    private final Lock lokotW;
-    
-    public Algoritam1v2(int brojDretvi, int id, int nVrhova,
-            LinkedHashSet<Integer> Vp,
-            LinkedHashSet<Integer> V,
-            ConcurrentSkipListSet<Integer> X,
-            ArrayList<ArrayList<Integer>> lista,
-            TreeSet<Integer>[] vrhovi, AtomicBoolean gotovo,
-            CyclicBarrier b1, CyclicBarrier b2, CyclicBarrier b3,
-            Lock lokotR, Lock lokotW) {
-        this.brojDretvi = brojDretvi;
-        this.id = id;
-        this.vrhovi = vrhovi;
-        this.gotovo = gotovo;
-        this.b1 = b1;
-        this.b2 = b2;
-        this.b3 = b3;
-        this.nVrhova = nVrhova;
-        this.listaSusjednosti = lista;
-        this.V = V;
-        this.Vp = Vp;
-        this.X = X;
-        this.lokotR = lokotR;
-        this.lokotW = lokotW;
-    }
+    //private final LinkedHashSet<Integer> V;
+    private final List<LinkedHashSet<Integer>> Vpart2 = particionirajVrhove2(brojDretvi);
+    private final ReadWriteLock lokot = new ReentrantReadWriteLock();
+    private final Lock lokotR = lokot.readLock();
+    private final Lock lokotW = lokot.writeLock();
 
-    @Override
+    public Algoritam1v2(Graf graf) {
+        super(graf);
+        this.V = new LinkedHashSet<>(Arrays.asList(graf.dajVrhove()));
+    }
+    
+    protected class Algoritam1impl implements Runnable {
+        private int id;
+        
+        public Algoritam1impl(int id) {
+            this.id = id;
+        }
+        
+        
+        @Override
     public void run() {
+        var Vp = Vpart2.get(id);
         while (!gotovo.getPlain()) {
         // prva faza radi random odabir vrhova iz zadanog podskupa za staviti u skup X
         // svaka odluka odabira je nezavisna od drugih i ima vjerojatnost 1/(2d(v)) za vrh v
@@ -130,7 +112,7 @@ public class Algoritam1v2 implements Runnable {
         }
         
         // treća i zadnja faza je uklanjanje X iz V
-        var mojiVrhovi = vrhovi[id];
+        var mojiVrhovi = vrhovi.get(id);
         lokotW.lock();
             try {
                 V.removeAll(mojiVrhovi);
@@ -149,6 +131,48 @@ public class Algoritam1v2 implements Runnable {
             }
         
         }
+    }
+    }
+
+    @Override
+    protected void b2kraj() {
+        var Xstar = new TreeSet<Integer>(X);
+            for (int v : X) {
+                Xstar.addAll(listaSusjednosti.get(v));
+                I.add(v);
+            }
+                
+            for (int i = 0; i < brojDretvi; ++i) {
+                vrhovi.set(i, new TreeSet<>(Vpart2.get(i)));
+                vrhovi.get(i).retainAll(Xstar); // Vp ∩ X*
+            }
+    }
+    
+    @Override
+    protected void b3kraj() {
+        X.clear();
+            
+        if (V.isEmpty())
+            gotovo.set(true);
+    }
+    
+    @Override
+    protected Collection<Integer> impl() {
+        List<Thread> dretve = new ArrayList<>(brojDretvi);
+        for (int i = 0; i < brojDretvi; ++i) {
+            Thread d = new Thread(new Algoritam1impl(i));
+            dretve.add(d);
+            d.start();
+        }
+        
+        for (Thread d : dretve)
+            try {
+                d.join();
+            } catch (InterruptedException ex) {
+                Logger.getLogger(Algoritam1v2.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        
+        return I;
     }
     
 }

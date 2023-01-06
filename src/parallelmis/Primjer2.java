@@ -37,23 +37,18 @@ public class Primjer2 {
         List<Integer> result = kocka.sequentialMIS();
         System.out.println(result.toString());
         
-        var future = kocka.parallelMIS2();
+        var future = new Algoritam1v2(kocka).dajZadatak();
         future.run();
-        result = future.get();
-        System.out.println(result.toString());
+        var result2 = future.get();
+        System.out.println(result2.toString());
         
-        future = kocka.parallelMIS3();
+        future = new Algoritam1v3(kocka).dajZadatak();
         future.run();
-        result = future.get();
-        System.out.println(result.toString());
+        result2 = future.get();
+        System.out.println(result2.toString());
         
-        future = kocka.parallelMIS5();
+        future = new Algoritam1v4(kocka).dajZadatak();
         future.run();
-        result = future.get();
-        System.out.println(result.toString());
-        
-        future = kocka.parallelMIS4();
-        future.run();
-        System.out.println(Set.copyOf(result).toString());
+        System.out.println(Set.copyOf(result2).toString());
     }
 }

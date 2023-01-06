@@ -2,6 +2,7 @@ package parallelmis;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -26,50 +27,61 @@ import java.util.logging.Logger;
  * Ova varijanta ne računa zasebno koje dijelove skupa X koja
  * dretva mora ukloniti iz V i ne koristi barijere, nego Phasere.
  */
-public class Algoritam1v4 implements Runnable {
-    private final int nIteracija = 1; // koliko puta pokušati izabrati vrh za X
-    private final ConcurrentSkipListSet<Integer> V;
-    private final LinkedHashSet<Integer> Vp;
-    private final ConcurrentSkipListSet<Integer> X;
-    private final LinkedHashSet<Integer> Xstar;
-    private final ConcurrentLinkedQueue<Integer> I;
-    private final ArrayList<LinkedHashSet<Integer>> listaSusjednosti; // read-only
+public class Algoritam1v4 extends Algoritam1 {
+    private final List<LinkedHashSet<Integer>> Vpart2 = particionirajVrhove2(brojDretvi);
+    private final LinkedHashSet<Integer> Xstar = new LinkedHashSet<>();
+    //private final ConcurrentLinkedQueue<Integer> I;
+    //private final ArrayList<LinkedHashSet<Integer>> listaSusjednosti; // read-only
+    private final ArrayList<LinkedHashSet<Integer>> kopijaListe = new ArrayList<>(n);
     private final Phaser phaser1, phaser2;
-    private final int id;
-    private final int brojDretvi;
-    private final AtomicInteger brojač;
-    private final AtomicBoolean gotovo;
-    private final AtomicLong gotoveDretve;
-    
-    public Algoritam1v4(int brojDretvi, int id, int nVrhova,
-            LinkedHashSet<Integer> Vp,
-            ConcurrentSkipListSet<Integer> V,
-            ConcurrentLinkedQueue<Integer> I,
-            ConcurrentSkipListSet<Integer> X,
-            LinkedHashSet<Integer> Xstar,
-            ArrayList<LinkedHashSet<Integer>> lista,
-            AtomicBoolean gotovo,
-            AtomicLong gotoveDretve,
-            AtomicInteger brojač,
-            Phaser phaser1, Phaser phaser2) {
-        this.brojDretvi = brojDretvi;
-        this.id = id;
-        this.gotovo = gotovo;
-        this.gotoveDretve = gotoveDretve;
-        this.brojač = brojač;
-        this.phaser1 = phaser1;
-        this.phaser2 = phaser2;
-        this.listaSusjednosti = lista;
-        this.V = V;
-        this.Vp = Vp;
-        this.X = X;
-        this.Xstar = Xstar;
-        this.I = I;
-    }
 
+    public Algoritam1v4(Graf graf) {
+        super(graf);
+        this.I = new ConcurrentLinkedQueue<>();
+        
+        for (int i = 0; i < n; ++i) {
+            kopijaListe.add(new LinkedHashSet<>(listaSusjednosti.get(i)));
+        }
+        
+        listaSusjednosti = kopijaListe;
+        phaser1 = new Phaser(brojDretvi) {
+            @Override
+            protected boolean onAdvance(int phase, int registered) {
+                return false;
+            }
+        };
+        
+        phaser2 = new Phaser(brojDretvi) {
+            @Override
+            protected boolean onAdvance(int phase, int registered) {
+                b2kraj();
+                return false;
+            }
+        };
+    }
+    
     @Override
-    public void run() {
-        int test = 1;
+    protected void b2kraj() {
+        Xstar.clear();
+        
+        for (int v : X) {
+            I.add(v);
+            Xstar.add(v);
+            Xstar.addAll(kopijaListe.get(v));
+            }
+    }
+    
+    protected class Algoritam1impl implements Runnable {
+        private int id;
+        
+        public Algoritam1impl(int id) {
+            this.id = id;
+        }
+
+        @Override
+        public void run() {
+            var Vp = Vpart2.get(id);
+            int test = 1;
         boolean dretvaGotova = false;
         
         do {
@@ -129,6 +141,27 @@ public class Algoritam1v4 implements Runnable {
         
         phaser1.forceTermination();
         phaser2.forceTermination();
+        }
     }
+    
+    @Override
+    protected Collection<Integer> impl() {
+        List<Thread> dretve = new ArrayList<>(brojDretvi);
+        for (int i = 0; i < brojDretvi; ++i) {
+            Thread d = new Thread(new Algoritam1impl(i));
+            dretve.add(d);
+            d.start();
+        }
+        
+        for (Thread d : dretve)
+            try {
+                d.join();
+            } catch (InterruptedException ex) {
+                Logger.getLogger(Algoritam1v2.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        
+        return I;
+    }
+
     
 }

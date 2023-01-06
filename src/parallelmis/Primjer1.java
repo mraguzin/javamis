@@ -17,23 +17,23 @@ public class Primjer1 {
         instance.dodajBrid(0, 1);
         instance.dodajBrid(1, 2);
 
-        List<Integer> result = instance.sequentialMIS();
+        var result = instance.sequentialMIS();
         //assertEquals(expResult, result);
         System.out.println(result.toString());
         
-        var future = instance.parallelMIS1();
+        var future = new Algoritam1v1(instance).dajZadatak();
         future.run();
-        result = future.get();
-        System.out.println(result.toString());
+        var result2 = future.get();
+        System.out.println(result2.toString());
         
-        future = instance.parallelMIS2();
+        future = new Algoritam1v2(instance).dajZadatak();
         future.run();
-        result = future.get();
-        System.out.println(result.toString());
+        result2 = future.get();
+        System.out.println(result2.toString());
         
-        future = instance.parallelMIS3();
+        future = new Algoritam1v3(instance).dajZadatak();
         future.run();
-        result = future.get();
-        System.out.println(result.toString());        
+        result2 = future.get();
+        System.out.println(result2.toString());        
     }
 }
