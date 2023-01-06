@@ -34,7 +34,6 @@ import parallelmis.helpers.SharedDouble;
  */
 public class Algoritam1v2 extends Algoritam1 {    
     // bridove koje vidi su svi bridovi incidentni s gornjim vrhovima; ovo bi se moglo bolje raspodijeliti...
-    //private final LinkedHashSet<Integer> V;
     private final List<LinkedHashSet<Integer>> Vpart2 = particionirajVrhove2(brojDretvi);
     private final ReadWriteLock lokot = new ReentrantReadWriteLock();
     private final Lock lokotR = lokot.readLock();

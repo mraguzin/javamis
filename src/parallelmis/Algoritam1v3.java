@@ -31,9 +31,7 @@ import java.util.logging.Logger;
  * (prošle varijante tada jednostavno besposleno prolaze kroz barijere).
  */
 public class Algoritam1v3 extends Algoritam1 {
-    //private final LinkedHashSet<Integer>[] vrhovi;
     private final List<LinkedHashSet<Integer>> Vpart2 = particionirajVrhove2(brojDretvi);
-    //private final ArrayList<LinkedHashSet<Integer>> listaSusjednosti; // read-only
     private final AtomicLong gotoveDretve = new AtomicLong();
     private final ArrayList<LinkedHashSet<Integer>> kopijaListe = new ArrayList<>(n); // kopija liste susjednosti
     private final LinkedHashSet<Integer>[] vrhovi2 = new LinkedHashSet[brojDretvi];

@@ -30,8 +30,6 @@ import java.util.logging.Logger;
 public class Algoritam1v4 extends Algoritam1 {
     private final List<LinkedHashSet<Integer>> Vpart2 = particionirajVrhove2(brojDretvi);
     private final LinkedHashSet<Integer> Xstar = new LinkedHashSet<>();
-    //private final ConcurrentLinkedQueue<Integer> I;
-    //private final ArrayList<LinkedHashSet<Integer>> listaSusjednosti; // read-only
     private final ArrayList<LinkedHashSet<Integer>> kopijaListe = new ArrayList<>(n);
     private final Phaser phaser1, phaser2;
 
@@ -119,7 +117,6 @@ public class Algoritam1v4 extends Algoritam1 {
         
         phaser2.arriveAndAwaitAdvance();
         Vp.removeAll(Xstar);
-        //V.removeAll(Xstar);
         X.clear(); // Ovo nije atomično, ali to je ok (u najgorem slučaju može
         //doći do višestrukog procesiranja vrhova u X, što je beskorisno,
         // ali i dalje korektno). Treba izmjeriti vremena na jako velikim i
