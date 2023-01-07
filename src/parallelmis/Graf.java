@@ -53,6 +53,8 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         // ako želimo koristiti binarno pretraživanje ispod, moramo paziti da ubacujemo
         // indekse susjeda na pravo mjesto
         int idx = Collections.binarySearch(listaSusjednosti.get(i), j);
+        if (idx >= 0)
+            return; // ne dupliciramo bridove
         listaSusjednosti.get(i).add(-idx-1, j);
         idx = Collections.binarySearch(listaSusjednosti.get(j), i);
         listaSusjednosti.get(j).add(-idx-1, i);
@@ -61,11 +63,12 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
     public void ukloniBrid(int i, int j) {
         listaSusjednosti.get(i).remove(Integer.valueOf(j));
         listaSusjednosti.get(j).remove(Integer.valueOf(i));
+        System.out.println(listaSusjednosti.toString());
     }
     
     public void ukloniVrh(int idx) { // PAZI: ovo efektivno *renumerira* vrhove --- bitno za GUI impl.!
         // prvo uklonimo sve incidentne bridove
-        for (var susjed : listaSusjednosti.get(idx)) {
+        for (int susjed : listaSusjednosti.get(idx)) {
             int i = Collections.binarySearch(listaSusjednosti.get(susjed), idx);
             listaSusjednosti.get(susjed).remove(i);
             //listaSusjednosti.get(susjed).remove(Integer.valueOf(idx)); // Možda brže ako se koristi binarno? Uočimo da su liste
@@ -76,17 +79,19 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         // korigirajmo indekse susjeda za sve vrhove indeksa < idx
         ArrayList<Integer> tmp1[] = new ArrayList[1];
         tmp1 = listaSusjednosti.toArray(tmp1);
-        for (int i = 0; i < idx; ++i) {
-            //var lista = listaSusjednosti.get(i);
+        for (int i = 0; i < tmp1.length; ++i) {
             var lista = tmp1[i];
+            if (lista == null)
+                continue;
             int j = Collections.binarySearch(lista, idx);
-            if (j >= 0) {
+            if (-j-1 < lista.size() && -j-1 >= 0) {
                 Integer[] tmp2 = new Integer[lista.size()];
                 tmp2 = lista.toArray(tmp2);
-                for (int k = j; k < lista.size(); ++k)
+                for (int k = -j-1; k < lista.size(); ++k)
                     tmp2[k]--;
                 
                 var l = Arrays.asList(tmp2);
+                System.out.println("tmp2 "+Arrays.toString(tmp2));
                 //listaSusjednosti.remove(i);
                 //listaSusjednosti.add(i, new ArrayList<>(l));
                 tmp1[i] = new ArrayList<>(l);
@@ -95,7 +100,12 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         
         var l = Arrays.asList(tmp1);
         listaSusjednosti = new ArrayList<>(l);
+        if (listaSusjednosti.get(0) == null)
+            listaSusjednosti = new ArrayList<>();
+        
         n--;
+        
+        System.out.println(listaSusjednosti.toString());
     }
     
     public static void ispišiMatricu(float[][] m) {

@@ -38,17 +38,12 @@ public class Primjer2 {
         System.out.println(result.toString());
         
         var future = new Algoritam1v2(kocka).dajZadatak();
-        future.run();
-        var result2 = future.get();
-        System.out.println(result2.toString());
+        future.thenAccept((rez) -> System.out.println(rez.toString()));
         
         future = new Algoritam1v3(kocka).dajZadatak();
-        future.run();
-        result2 = future.get();
-        System.out.println(result2.toString());
+        future.thenAccept((rez) -> System.out.println(rez.toString()));
         
         future = new Algoritam1v4(kocka).dajZadatak();
-        future.run();
-        System.out.println(Set.copyOf(result2).toString());
+        future.thenAccept((rez) -> System.out.println(rez.toString()));
     }
 }

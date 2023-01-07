@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.FutureTask;
@@ -205,9 +206,12 @@ public abstract class Algoritam1 {
         return skupovi;
     }
     
-    public FutureTask<Collection<Integer>> dajZadatak() {
-        var c = (Callable<Collection<Integer>>) this::impl;
-        return new FutureTask<>(c);
+    public CompletableFuture<Collection<Integer>> dajZadatak() {
+        //var c = (Callable<Collection<Integer>>) this::impl;
+        //return new FutureTask<>(c);
+        return CompletableFuture.supplyAsync(() -> {
+            return impl();
+        });
     }
 
     protected Collection<Integer> impl() {

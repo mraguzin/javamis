@@ -155,6 +155,7 @@ public class Algoritam1v2 extends Algoritam1 {
             gotovo.set(true);
     }
     
+    //TODO: ovome se treba dodijeliti instanca unutarnje impl.klase t.d. ovo može biti dijeljeno u svim varijantama iz apstraktne klase
     @Override
     protected Collection<Integer> impl() {
         List<Thread> dretve = new ArrayList<>(brojDretvi);

@@ -1,13 +1,14 @@
 package misgui;
 
 import java.awt.geom.Line2D;
+import java.util.Objects;
 
 /**
  *
  * @author mraguzin
  */
 public class Segment extends Line2D.Float {
-    private int id0, id1;
+    private Krug krug0, krug1;
     
     public Segment(Krug krug0, Krug krug1) {
         double x0 = krug0.dajX();
@@ -16,8 +17,8 @@ public class Segment extends Line2D.Float {
         double y1 = krug1.dajY();
         double R0 = krug0.dajRadijus();
         double R1 = krug1.dajRadijus();
-        id0 = krug0.dajId();
-        id1 = krug1.dajId();
+        this.krug0 = krug0;
+        this.krug1 = krug1;
         
         double dx = x1 - x0;
         double dy = y1 - y0;
@@ -47,20 +48,20 @@ public class Segment extends Line2D.Float {
         super.y2 = (float)y1;        
     }
     
-    public int dajKrug1() {
-        return id0;
+    public Krug dajKrug1() {
+        return krug0;
     }
     
-    public int dajKrug2() {
-        return id1;
+    public Krug dajKrug2() {
+        return krug1;
     }
     
-    public void postaviKrug1(int id) {
-        id0 = id;
+    public void postaviKrug1(Krug k) {
+        krug0 = k;
     }
     
-    public void postaviKrug2(int id) {
-        id1 = id;
+    public void postaviKrug2(Krug k) {
+        krug1 = k;
     }
     
     @Override
@@ -70,7 +71,8 @@ public class Segment extends Line2D.Float {
         
         if (o instanceof Segment) {
             Segment s = (Segment) o;
-            if (s.id0 == id0 && s.id1 == id1 || s.id0 == id1 && s.id1 == id0)
+            if (s.krug0.equals(krug0) && s.krug1.equals(krug1) ||
+                    s.krug0.equals(krug1) && s.krug1.equals(krug0))
                 return true;
         }
         
@@ -80,8 +82,8 @@ public class Segment extends Line2D.Float {
     @Override
     public int hashCode() {
         int hash = 7;
-        hash = 59 * hash + this.id0;
-        hash = 59 * hash + this.id1;
+        hash = 17 * hash + Objects.hashCode(this.krug0);
+        hash = 17 * hash + Objects.hashCode(this.krug1);
         return hash;
     }
 }

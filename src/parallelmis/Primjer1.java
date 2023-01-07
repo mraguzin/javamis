@@ -22,18 +22,12 @@ public class Primjer1 {
         System.out.println(result.toString());
         
         var future = new Algoritam1v1(instance).dajZadatak();
-        future.run();
-        var result2 = future.get();
-        System.out.println(result2.toString());
+        future.thenAccept((rez) -> System.out.println(rez.toString()));
         
         future = new Algoritam1v2(instance).dajZadatak();
-        future.run();
-        result2 = future.get();
-        System.out.println(result2.toString());
+        future.thenAccept((rez) -> System.out.println(rez.toString()));
         
         future = new Algoritam1v3(instance).dajZadatak();
-        future.run();
-        result2 = future.get();
-        System.out.println(result2.toString());        
+        future.thenAccept((rez) -> System.out.println(rez.toString()));
     }
 }
