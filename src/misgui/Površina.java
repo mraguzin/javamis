@@ -235,42 +235,39 @@ public class Površina extends JComponent {
         }
         
         this.akcija = novaAkcija;
-        if (novaAkcija == Akcija.NEMA) {
-            zadnjiKrug = null;
-            if (prviKrug != null) {
-                prviKrug.resetiraj();
-                prviKrug = null;
-                repaint();
-            }
-        }
-        else if (novaAkcija == Akcija.OČISTI) {
-            očisti();
-            this.akcija = stara;
-        }
-        else if (novaAkcija == Akcija.SEQ) {
-            
-            if (graf.dajBrojVrhova() == 0)
-                okvir.objaviRezultat(null);
-            else {
-                var zadatak = CompletableFuture.supplyAsync(() -> {
-                    return graf.sequentialMIS();
+        if (null != novaAkcija) switch (novaAkcija) {
+            case NEMA:
+                zadnjiKrug = null;
+                if (prviKrug != null) {
+                    prviKrug.resetiraj();
+                    prviKrug = null;
+                    repaint();
+                }   break;
+            case OČISTI:
+                očisti();
+                this.akcija = stara;
+                break;
+            case SEQ:
+                if (graf.dajBrojVrhova() == 0)
+                    okvir.objaviRezultat(null);
+                else {
+                    var zadatak = CompletableFuture.supplyAsync(() -> {
+                        return graf.sequentialMIS();
                     });
-                
-                zadatak.thenAccept(this::procesirajRezultat);
-            }
-            
-            this.akcija = Akcija.NEMA;
-        }
-        else if (novaAkcija == Akcija.PAR) {
-            
-            if (graf.dajBrojVrhova() == 0)
-                okvir.objaviRezultat(null);
-            else {
-                var zadatak = new Algoritam1v4(graf).dajZadatak(); //TODO: dodaj druge varijante, štopaj i usporedi vremena
-                zadatak.thenAccept(this::procesirajRezultat);
-            }
-            
-            this.akcija = Akcija.NEMA;
+                    
+                    zadatak.thenAccept(this::procesirajRezultat);
+                }   this.akcija = Akcija.NEMA;
+                break;
+            case PAR:
+                if (graf.dajBrojVrhova() == 0)
+                    okvir.objaviRezultat(null);
+                else {
+                    var zadatak = new Algoritam1v4(graf).dajZadatak(); //TODO: dodaj druge varijante, štopaj i usporedi vremena
+                    zadatak.thenAccept(this::procesirajRezultat);
+                }   this.akcija = Akcija.NEMA;
+                break;
+            default:
+                break;
         }
     }
     

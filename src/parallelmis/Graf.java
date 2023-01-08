@@ -25,7 +25,6 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import parallelmis.helpers.SharedDouble;
 
 /**
  *
@@ -119,7 +118,7 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
             
             while (s.hasNextLine()) {
                 linija = s.nextLine();
-                String[] dijelovi = linija.split(" ");
+                String[] dijelovi = linija.split(" ", 4);
                 switch (dijelovi[0]) {
                     case "c":
                         break;
