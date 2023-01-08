@@ -349,6 +349,7 @@ public class Površina extends JComponent {
         segmenti.remove(s);
         
         repaint();
+        okvir.objaviPromjenu();
     }
     
     public void očisti() {

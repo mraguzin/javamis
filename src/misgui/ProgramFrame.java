@@ -14,22 +14,18 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.AbstractAction;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
-import javax.swing.JComponent;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
-import static javax.swing.JOptionPane.ERROR_MESSAGE;
 import javax.swing.JPanel;
 import javax.swing.KeyStroke;
 import parallelmis.Graf;
@@ -270,7 +266,7 @@ public class ProgramFrame extends JFrame {
         
         if (rezultat == null) {
             JOptionPane.showMessageDialog(null, "Niste nacrtali graf!",
-                    "Greška", ERROR_MESSAGE);
+                    "Greška", JOptionPane.ERROR_MESSAGE);
         }
         
         // TODO: štopanje, neke dodatne poruke...?
