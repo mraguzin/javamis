@@ -125,7 +125,7 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
                     case "p":
                     {
                         if (učitanProlog)
-                            throw new Exception("Više puta se pojavljuje 'a' unos!");
+                            throw new Exception("Više puta se pojavljuje 'p' unos!");
                         vrhova = Integer.parseInt(dijelovi[2]);
                         bridova = Integer.parseInt(dijelovi[3]);
                         for (int i = 0; i < vrhova; ++i)

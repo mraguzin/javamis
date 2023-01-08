@@ -13,6 +13,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.ThreadLocalRandom;
@@ -62,9 +63,7 @@ public abstract class Algoritam1 {
     }
     
     public Algoritam1(Graf graf) {
-        this(graf,
-            Runtime.getRuntime().availableProcessors() >= graf.dajBrojVrhova() ?
-            graf.dajBrojVrhova() : Runtime.getRuntime().availableProcessors());
+        this(graf, dajDefaultBrojDretvi(graf));
     }
     
     protected class Algoritam1impl implements Runnable {
@@ -153,6 +152,11 @@ public abstract class Algoritam1 {
         }
     }
     
+    protected static final int dajDefaultBrojDretvi(Graf graf) {
+        return Runtime.getRuntime().availableProcessors() >= graf.dajBrojVrhova() ?
+            graf.dajBrojVrhova() : Runtime.getRuntime().availableProcessors();
+    }
+    
     protected void b2kraj() {
         var Xstar = new TreeSet<Integer>(X);
         for (int v : X)
@@ -180,7 +184,7 @@ public abstract class Algoritam1 {
         for (int i = 0; i < n; ++i) {
             int j = i / m;
             if (j == k)
-                k--;
+                j--;
             //if (skupovi.get(j) == null)
                 //skupovi.set(j, new TreeSet<>());
             skupovi.get(j).add(i);
@@ -198,7 +202,7 @@ public abstract class Algoritam1 {
         for (int i = 0; i < n; ++i) {
             int j = i / m;
             if (j == k)
-                k--;
+                j--;
             skupovi.get(j).add(i);
         }
         
@@ -206,7 +210,10 @@ public abstract class Algoritam1 {
     }
     
     public CompletableFuture<Collection<Integer>> dajZadatak() {
-        var exec = Executors.newSingleThreadExecutor();
+        return dajZadatak(Executors.newSingleThreadExecutor());
+    }
+    
+    public CompletableFuture<Collection<Integer>> dajZadatak(Executor exec) {
         return CompletableFuture.supplyAsync(() -> {
             return impl();
         }, exec);

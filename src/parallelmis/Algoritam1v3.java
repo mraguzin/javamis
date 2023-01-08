@@ -37,7 +37,11 @@ public class Algoritam1v3 extends Algoritam1 {
     private final LinkedHashSet<Integer>[] vrhovi2 = new LinkedHashSet[brojDretvi];
 
     public Algoritam1v3(Graf graf) {
-        super(graf);
+        this(graf, dajDefaultBrojDretvi(graf));
+    }
+    
+    public Algoritam1v3(Graf graf, int brojDretvi) {
+        super(graf, brojDretvi);
         for (int i = 0; i < n; ++i) {
             kopijaListe.add(new LinkedHashSet<>(listaSusjednosti.get(i)));
         }
@@ -173,13 +177,16 @@ public class Algoritam1v3 extends Algoritam1 {
                         int vrhova = Vpart2.get(aktivna).size();
                         if (vrhova >= 2) {
                             limit = gotova > limit ? gotova : limit;
+                            var zaUkloniti = new LinkedHashSet<Integer>();
                             var it = Vpart2.get(aktivna).iterator();
                             for (int i = 0; i < vrhova/2; ++i) {
                                 int el = it.next();
                                 Vpart2.get(gotova).add(el);
-                                Vpart2.get(aktivna).remove(el);
+                                //Vpart2.get(aktivna).remove(el);
+                                zaUkloniti.add(el);
                             }
                             
+                            Vpart2.get(aktivna).removeAll(zaUkloniti);
                             rez &= ~(1l << gotova);
                         }
                         

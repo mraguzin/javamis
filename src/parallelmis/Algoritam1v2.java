@@ -39,11 +39,15 @@ public class Algoritam1v2 extends Algoritam1 {
     private final Lock lokotR = lokot.readLock();
     private final Lock lokotW = lokot.writeLock();
 
-    public Algoritam1v2(Graf graf) {
-        super(graf);
+    public Algoritam1v2(Graf graf, int brojDretvi) {
+        super(graf, brojDretvi);
         this.V = new LinkedHashSet<>(Arrays.asList(graf.dajVrhove()));
     }
     
+    public Algoritam1v2(Graf graf) {
+        this(graf, dajDefaultBrojDretvi(graf));
+    }
+        
     protected class Algoritam1impl implements Runnable {
         private int id;
         

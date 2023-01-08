@@ -34,7 +34,11 @@ public class Algoritam1v4 extends Algoritam1 {
     private final Phaser phaser1, phaser2;
 
     public Algoritam1v4(Graf graf) {
-        super(graf);
+        this(graf, dajDefaultBrojDretvi(graf));
+    }
+    
+    public Algoritam1v4(Graf graf, int brojDretvi) {
+        super(graf, brojDretvi);
         this.I = new ConcurrentLinkedQueue<>();
         
         for (int i = 0; i < n; ++i) {
@@ -56,6 +60,10 @@ public class Algoritam1v4 extends Algoritam1 {
                 return false;
             }
         };
+    }
+    
+    private void postavi() {
+        
     }
     
     @Override
