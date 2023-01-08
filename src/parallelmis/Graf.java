@@ -1,11 +1,14 @@
 package parallelmis;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Scanner;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.Callable;
@@ -63,7 +66,6 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
     public void ukloniBrid(int i, int j) {
         listaSusjednosti.get(i).remove(Integer.valueOf(j));
         listaSusjednosti.get(j).remove(Integer.valueOf(i));
-        System.out.println(listaSusjednosti.toString());
     }
     
     public void ukloniVrh(int idx) { // PAZI: ovo efektivno *renumerira* vrhove --- bitno za GUI impl.!
@@ -71,8 +73,6 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         for (int susjed : listaSusjednosti.get(idx)) {
             int i = Collections.binarySearch(listaSusjednosti.get(susjed), idx);
             listaSusjednosti.get(susjed).remove(i);
-            //listaSusjednosti.get(susjed).remove(Integer.valueOf(idx)); // Možda brže ako se koristi binarno? Uočimo da su liste
-            // susjeda uvijek sortirane
         }
         listaSusjednosti.remove(idx);
         
@@ -92,8 +92,6 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
                 
                 var l = Arrays.asList(tmp2);
                 System.out.println("tmp2 "+Arrays.toString(tmp2));
-                //listaSusjednosti.remove(i);
-                //listaSusjednosti.add(i, new ArrayList<>(l));
                 tmp1[i] = new ArrayList<>(l);
             }
         }
@@ -106,6 +104,51 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         n--;
         
         System.out.println(listaSusjednosti.toString());
+    }
+    
+    public static Graf stvoriIzDatoteke(File f) throws Exception {
+        Graf graf;
+        try ( // datoteka mora biti u tekstualnom Challenge 9 formatu
+        // vidjeti https://www.diag.uniroma1.it//challenge9/download.shtml
+        java.util.Scanner s = new Scanner(f)) {
+            String linija;
+            graf = new Graf();
+            int bridova = 0, vrhova;
+            boolean učitanProlog = false;
+            int k = 0;
+            
+            while (s.hasNextLine()) {
+                linija = s.nextLine();
+                String[] dijelovi = linija.split(" ");
+                switch (dijelovi[0]) {
+                    case "c":
+                        break;
+                    case "p":
+                    {
+                        if (učitanProlog)
+                            throw new Exception("Više puta se pojavljuje 'a' unos!");
+                        vrhova = Integer.parseInt(dijelovi[2]);
+                        bridova = Integer.parseInt(dijelovi[3]);
+                        for (int i = 0; i < vrhova; ++i)
+                            graf.dodajVrh();
+                        učitanProlog = true;
+                        break;
+                    }
+                    case "a":
+                    {
+                        ++k;
+                        int i = Integer.parseInt(dijelovi[1]) - 1;
+                        int j = Integer.parseInt(dijelovi[2]) - 1;
+                        graf.dodajBrid(i, j);
+                        break;
+                    }
+                    default:
+                        if (!učitanProlog || k < bridova)
+                            throw new Exception("Kriva oznaka linije");
+                }
+            }
+        }
+        return graf;
     }
     
     public static void ispišiMatricu(float[][] m) {

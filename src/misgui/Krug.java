@@ -24,6 +24,13 @@ public class Krug extends Ellipse2D.Float {
         this.y = y;
     }
     
+    public void pomakni(float noviX, float noviY) {
+        super.x = noviX - radijus;
+        super.y = noviY - radijus;
+        this.x = noviX;
+        this.y = noviY;
+    }
+    
     public Color dajBoju() {
         return boja;
     }

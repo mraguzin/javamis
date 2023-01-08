@@ -11,6 +11,10 @@ public class Segment extends Line2D.Float {
     private Krug krug0, krug1;
     
     public Segment(Krug krug0, Krug krug1) {
+        postavi(krug0, krug1);     
+    }
+    
+    private void postavi(Krug krug0, Krug krug1) {
         double x0 = krug0.dajX();
         double y0 = krug0.dajY();
         double x1 = krug1.dajX();
@@ -45,7 +49,16 @@ public class Segment extends Line2D.Float {
         super.x1 = (float)x0;
         super.x2 = (float)x1;
         super.y1 = (float)y0;
-        super.y2 = (float)y1;        
+        super.y2 = (float)y1;     
+    }
+    
+    public void pomakniKraj(Krug kraj, float x, float y) {
+        Krug k = (Krug) kraj.clone();
+        k.pomakni(x, y);
+        if (kraj.equals(krug0))
+            postavi(k, krug1);
+        else
+            postavi(krug0, k);
     }
     
     public Krug dajKrug1() {

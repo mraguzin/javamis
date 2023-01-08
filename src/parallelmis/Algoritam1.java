@@ -13,6 +13,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -198,8 +199,6 @@ public abstract class Algoritam1 {
             int j = i / m;
             if (j == k)
                 k--;
-            //if (skupovi.get(j) == null)
-              //  skupovi.set(j, new LinkedHashSet<>());
             skupovi.get(j).add(i);
         }
         
@@ -207,11 +206,10 @@ public abstract class Algoritam1 {
     }
     
     public CompletableFuture<Collection<Integer>> dajZadatak() {
-        //var c = (Callable<Collection<Integer>>) this::impl;
-        //return new FutureTask<>(c);
+        var exec = Executors.newSingleThreadExecutor();
         return CompletableFuture.supplyAsync(() -> {
             return impl();
-        });
+        }, exec);
     }
 
     protected Collection<Integer> impl() {
