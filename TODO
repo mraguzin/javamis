@@ -8,4 +8,5 @@ Najbolje je direktno serijalizirati listaSusjednosti ArrayList preko toString, n
 Te dvije stavke mogu ići u dva stupca SQLite tablice
 (segmenti se ne moraju spremati jer će se ionako rekonstruirati kada budete stvorili graf, ali pazite da ga stvorite (grafički), nakon učitavanja, koristeći metode dodajKrug i dodajSegment)
 
-
+==PERFORMANSE==
+-čini se da sada v1 implementacija može dati dosta brza rješenja, ponekad brža i od sekvencijalnih za mis_graf1, ali trebali bi probati na većim grafovima da vidimo postoji li prag kada paralelni algoritam konzistentno dominira

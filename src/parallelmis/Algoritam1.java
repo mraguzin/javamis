@@ -48,7 +48,6 @@ public abstract class Algoritam1 {
     protected final AtomicBoolean gotovo = new AtomicBoolean(false);
     protected final CyclicBarrier b0, b1, b2, b2mod, b3;
     protected List<LinkedHashSet<Integer>> vrhovi;
-    protected Set<Integer> Xstar;
     
     protected final int nIteracija = 1;
     
@@ -57,10 +56,9 @@ public abstract class Algoritam1 {
         this.n = graf.dajBrojVrhova();
         this.brojDretvi = brojDretvi;
         this.Vpart = particionirajVrhove2(brojDretvi);
-        this.V = new ConcurrentLinkedQueue<>(Arrays.asList(graf.dajVrhove()));
+        this.V = new ConcurrentSkipListSet<>(Arrays.asList(graf.dajVrhove()));
         this.I = new ConcurrentLinkedQueue<>();
         this.X = new ConcurrentSkipListSet<>();
-        this.Xstar = new ConcurrentSkipListSet<>();
         this.listaSusjednosti = graf.dajListu();
         this.brojač = new AtomicInteger(brojDretvi);
         this.vrhovi = new ArrayList<>(brojDretvi);
@@ -81,18 +79,19 @@ public abstract class Algoritam1 {
     protected class Algoritam1impl implements Runnable {
         private final int id;
         private final int vrhovaPoDretvi;
-        private double[] vjerojatnosti; //TODO: neka svaka dretva u b0 izračuna svoju
-        private final ArrayList<LinkedHashSet<Integer>> kopijaListe = new ArrayList<>(n); // kopija liste susjednosti
+        //private final ArrayList<LinkedHashSet<Integer>> kopijaListe = new ArrayList<>(n); // kopija liste susjednosti
         
         protected Algoritam1impl(int id, int vrhovaPoDretvi) {
             this.id = id;
             this.vrhovaPoDretvi = vrhovaPoDretvi;
             
-            for (int i = 0; i < n; ++i) {
-            kopijaListe.add(new LinkedHashSet<>(listaSusjednosti.get(i)));
-            }
+            // sporije zbog kopiranja; ne isplati se za imalo veće grafove
             
-            listaSusjednosti = kopijaListe;
+//            for (int i = 0; i < n; ++i) {
+//            kopijaListe.add(new LinkedHashSet<>(listaSusjednosti.get(i)));
+//            }
+//            
+//            listaSusjednosti = kopijaListe;
         }
 
         @Override
@@ -161,31 +160,16 @@ public abstract class Algoritam1 {
             }
         }
         
-        // račun unije u I
-        for (int v : Vp) {
-            if (X.contains(v)) {
-                I.add(v);
-                Xstar.add(v);
-                Xstar.addAll(listaSusjednosti.get(v));//TODO: finiji lokot!
-            }
-        }
-        
-                try {
-                    b2mod.await();
-                } catch (InterruptedException ex) {
-                    Logger.getLogger(Algoritam1.class.getName()).log(Level.SEVERE, null, ex);
-                } catch (BrokenBarrierException ex) {
-                    Logger.getLogger(Algoritam1.class.getName()).log(Level.SEVERE, null, ex);
-                }
-        
         // treća i zadnja faza je uklanjanje X iz V
         
         // određivanje vrhova koje treba eliminirati
         var zaUkloniti = new LinkedHashSet<Integer>();
         for (int v : Vp) {
-            if (!Xstar.contains(v)) {
+            if (X.contains(v)) {
                 V.remove(v);
+                V.removeAll(listaSusjednosti.get(v));
                 zaUkloniti.add(v);
+                zaUkloniti.addAll(listaSusjednosti.get(v));
             }
         }
         
