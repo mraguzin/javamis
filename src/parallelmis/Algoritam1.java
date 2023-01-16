@@ -11,6 +11,7 @@ import java.util.TreeSet;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Executor;
@@ -26,20 +27,28 @@ import java.util.logging.Logger;
 /**
  *
  * @author mraguzin
+ * Glavna klasa za algoritam kojim rješavamo MIS problem; postoje razne varijante
+ * konkretnih implementacija koje su isprobavane i neke su se pokazale dobrima,
+ * neke baš i ne. Sve nasljeđuju ovu klasu i implementiraju svoj run() u unutarnjoj
+ * implementacijskoj klasi, kako bi bilo moguće konstruirati dretve koje dijele
+ * određeni kontekst, koji je sadržan pod Algoritam1 (osim nekih specifičnih
+ * objekata koje može definirati svaka zasebna konkretna klasa koja nasljeđuje
+ * ovu).
  */
 public abstract class Algoritam1 {
     protected final Graf graf;
     protected final int n; // |V|
     protected final int brojDretvi;
-    protected List<TreeSet<Integer>> Vpart;
-    protected Set<Integer> V;
+    protected List<LinkedHashSet<Integer>> Vpart;
+    protected Collection<Integer> V;
     protected Collection<Integer> I;
     protected Set<Integer> X;
     protected List<? extends Collection<Integer>> listaSusjednosti; // read-only
     protected final AtomicInteger brojač; // brojač particija; 0 znači da smo gotovi
     protected final AtomicBoolean gotovo = new AtomicBoolean(false);
-    protected final CyclicBarrier b1, b2, b3;
-    protected List<TreeSet<Integer>> vrhovi;
+    protected final CyclicBarrier b0, b1, b2, b2mod, b3;
+    protected List<LinkedHashSet<Integer>> vrhovi;
+    protected Set<Integer> Xstar;
     
     protected final int nIteracija = 1;
     
@@ -47,18 +56,21 @@ public abstract class Algoritam1 {
         this.graf = graf;
         this.n = graf.dajBrojVrhova();
         this.brojDretvi = brojDretvi;
-        this.Vpart = particionirajVrhove(brojDretvi);
-        this.V = new ConcurrentSkipListSet<>(Arrays.asList(graf.dajVrhove()));
-        this.I = new ArrayList<>();
+        this.Vpart = particionirajVrhove2(brojDretvi);
+        this.V = new ConcurrentLinkedQueue<>(Arrays.asList(graf.dajVrhove()));
+        this.I = new ConcurrentLinkedQueue<>();
         this.X = new ConcurrentSkipListSet<>();
+        this.Xstar = new ConcurrentSkipListSet<>();
         this.listaSusjednosti = graf.dajListu();
         this.brojač = new AtomicInteger(brojDretvi);
         this.vrhovi = new ArrayList<>(brojDretvi);
         for (int i = 0; i < brojDretvi; ++i)
-            vrhovi.add(new TreeSet<>());
+            vrhovi.add(new LinkedHashSet<>());
         
+        this.b0 = new CyclicBarrier(brojDretvi);
         this.b1 = new CyclicBarrier(brojDretvi);
         this.b2 = new CyclicBarrier(brojDretvi, this::b2kraj);
+        this.b2mod = new CyclicBarrier(brojDretvi);
         this.b3 = new CyclicBarrier(brojDretvi, this::b3kraj);
     }
     
@@ -68,17 +80,43 @@ public abstract class Algoritam1 {
     
     protected class Algoritam1impl implements Runnable {
         private final int id;
-        private final double[] vjerojatnosti;
+        private final int vrhovaPoDretvi;
+        private double[] vjerojatnosti; //TODO: neka svaka dretva u b0 izračuna svoju
+        private final ArrayList<LinkedHashSet<Integer>> kopijaListe = new ArrayList<>(n); // kopija liste susjednosti
         
-        protected Algoritam1impl(int id, double[] vjerojatnosti) {
+        protected Algoritam1impl(int id, int vrhovaPoDretvi) {
             this.id = id;
-            this.vjerojatnosti = vjerojatnosti;
+            this.vrhovaPoDretvi = vrhovaPoDretvi;
+            
+            for (int i = 0; i < n; ++i) {
+            kopijaListe.add(new LinkedHashSet<>(listaSusjednosti.get(i)));
+            }
+            
+            listaSusjednosti = kopijaListe;
         }
 
         @Override
         public void run() {
             boolean dretvaGotova = false;
-            var Vp = Vpart.get(id);
+            var Vp = new LinkedHashSet<Integer>(); // vrhovi koje ova dretva vidi
+            
+            // nulta faza: izvodi se samo jedanput, na samom početku, kako bi
+            // svaka dretva odredila svoje vrhove i krenula na posao
+            // ovdje isto treba izračunati vjerojatnosti za odabir onih vrhova
+            // koje vidi
+            int init = id * vrhovaPoDretvi;
+            for (int i = init; i < Math.min(init + vrhovaPoDretvi, n); ++i) {
+                Vp.add(i);
+            }
+            
+            try {
+                b0.await();
+            } catch (InterruptedException ex) {
+                Logger.getLogger(Algoritam1.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (BrokenBarrierException ex) {
+                Logger.getLogger(Algoritam1.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            
         
         while (!gotovo.getPlain()) {
         // prva faza radi random odabir vrhova iz zadanog podskupa za staviti u skup X
@@ -86,9 +124,10 @@ public abstract class Algoritam1 {
         
         for (int i = 0; i < nIteracija; ++i) {
             for (int v : Vp) {
-                if (vjerojatnosti[v] < Double.POSITIVE_INFINITY) {
+                double p = 1.0 / (2.0 * listaSusjednosti.get(v).size());
+                if (p < Double.POSITIVE_INFINITY) {
                     double odabir = ThreadLocalRandom.current().nextDouble();
-                    if (vjerojatnosti[v] < odabir)
+                    if (p < odabir)
                         X.add(v);
                     }
                 else
@@ -122,18 +161,35 @@ public abstract class Algoritam1 {
             }
         }
         
-        try {
-            b2.await(); // ova će barijera na kraju izvršiti računanje unije u I na jednoj (zadnjoj) dretvi
-        } catch (InterruptedException ex) {
-            Logger.getLogger(Algoritam1v1.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (BrokenBarrierException ex) {
-            Logger.getLogger(Algoritam1v1.class.getName()).log(Level.SEVERE, null, ex);
+        // račun unije u I
+        for (int v : Vp) {
+            if (X.contains(v)) {
+                I.add(v);
+                Xstar.add(v);
+                Xstar.addAll(listaSusjednosti.get(v));//TODO: finiji lokot!
+            }
         }
         
+                try {
+                    b2mod.await();
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(Algoritam1.class.getName()).log(Level.SEVERE, null, ex);
+                } catch (BrokenBarrierException ex) {
+                    Logger.getLogger(Algoritam1.class.getName()).log(Level.SEVERE, null, ex);
+                }
+        
         // treća i zadnja faza je uklanjanje X iz V
-        var mojiVrhovi = vrhovi.get(id);
-        V.removeAll(mojiVrhovi);
-        Vp.removeAll(mojiVrhovi);
+        
+        // određivanje vrhova koje treba eliminirati
+        var zaUkloniti = new LinkedHashSet<Integer>();
+        for (int v : Vp) {
+            if (!Xstar.contains(v)) {
+                V.remove(v);
+                zaUkloniti.add(v);
+            }
+        }
+        
+        Vp.removeAll(zaUkloniti);
         
         if (!dretvaGotova && Vp.isEmpty()) {
             dretvaGotova = true;
@@ -157,17 +213,7 @@ public abstract class Algoritam1 {
             graf.dajBrojVrhova() : Runtime.getRuntime().availableProcessors();
     }
     
-    protected void b2kraj() {
-        var Xstar = new TreeSet<Integer>(X);
-        for (int v : X)
-            Xstar.addAll(listaSusjednosti.get(v));
-        for (int i = 0; i < brojDretvi; ++i) {
-            vrhovi.set(i, new TreeSet<>(Vpart.get(i)));
-            vrhovi.get(i).retainAll(Xstar); // Vp ∩ X*
-            }
-            
-        I.addAll(X);
-        }
+    protected void b2kraj() {}
     
     protected void b3kraj() {
         X.clear();
@@ -220,15 +266,11 @@ public abstract class Algoritam1 {
     }
 
     protected Collection<Integer> impl() {
-        final double[] vjerojatnosti = new double[n];
-        
-        for (int i = 0; i < n; ++i) {
-            vjerojatnosti[i] = 1.0 / (2.0 * listaSusjednosti.get(i).size()); // tu može doći ∞ i to je ok
-        }
-        
         List<Thread> dretve = new ArrayList<>(brojDretvi);
+        int poDretvi = n / brojDretvi;
+        
         for (int i = 0; i < brojDretvi; ++i) {
-            Thread d = new Thread(new Algoritam1impl(i, vjerojatnosti));
+            Thread d = new Thread(new Algoritam1impl(i, poDretvi));
             dretve.add(d);
             d.start();
         }

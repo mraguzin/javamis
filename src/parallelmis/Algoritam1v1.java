@@ -3,6 +3,8 @@ package parallelmis;
 /**
  *
  * @author mraguzin
+ * Ovo je glavna varijanta algoritma i koristi default implementaciju iz
+ * apstraktne klase Algoritam1
  */
 public class Algoritam1v1 extends Algoritam1 { // TODO: ovo po mjerenjima (vidi Primjer3)
     // ispada prosječno najbrža varijanta, pa bi se isplatilo napraviti neke

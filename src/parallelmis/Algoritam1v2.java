@@ -139,14 +139,14 @@ public class Algoritam1v2 extends Algoritam1 {
 
     @Override
     protected void b2kraj() {
-        var Xstar = new TreeSet<Integer>(X);
+        var Xstar = new LinkedHashSet<Integer>(X);
             for (int v : X) {
                 Xstar.addAll(listaSusjednosti.get(v));
                 I.add(v);
             }
                 
             for (int i = 0; i < brojDretvi; ++i) {
-                vrhovi.set(i, new TreeSet<>(Vpart2.get(i)));
+                vrhovi.set(i, new LinkedHashSet<>(Vpart2.get(i)));
                 vrhovi.get(i).retainAll(Xstar); // Vp ∩ X*
             }
     }
