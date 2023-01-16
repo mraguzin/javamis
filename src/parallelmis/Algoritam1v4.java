@@ -26,6 +26,7 @@ import java.util.logging.Logger;
  * @author mraguzin
  * Ova varijanta ne računa zasebno koje dijelove skupa X koja
  * dretva mora ukloniti iz V i ne koristi barijere, nego Phasere.
+ * Vremenski, ovo je *najsporija* implementacija i možemo je zanemariti (uostalom, ima i bugova!)
  */
 public class Algoritam1v4 extends Algoritam1 {
     private final List<LinkedHashSet<Integer>> Vpart2 = particionirajVrhove2(brojDretvi);
@@ -125,7 +126,8 @@ public class Algoritam1v4 extends Algoritam1 {
         
         phaser2.arriveAndAwaitAdvance();
         Vp.removeAll(Xstar);
-        X.clear(); // Ovo nije atomično, ali to je ok (u najgorem slučaju može
+        if (id == 0)
+            X.clear(); // Ovo nije atomično, ali to je ok (u najgorem slučaju može
         //doći do višestrukog procesiranja vrhova u X, što je beskorisno,
         // ali i dalje korektno). Treba izmjeriti vremena na jako velikim i
         //gustim grafovima da vidimo kako ovo zaista utječe na perf.

@@ -1,0 +1,11 @@
+===GUI===
+*dodati vremena izmjerena za sekvencijalno/paralelno računanje u statusbar u ProgramFrame (taj panel treba dodati u okvir, trenutno ne postoji), za mjerenje koristite StopWatch iz Commons lib, u milisekundama
+*ikonice za Save/Open opcije u File izborniku (kod u ProgramFrame već sadrži sve potrebno, samo nemamo te .gif sličice)
+*dijalog za spremanje baze i još jedan za otvaranje; budući da ne želimo da korisnik misli da sprema u nekakve fajlove, to treba implementirati kao klasu koja extenda JDialog i sadrži sve potrebne kontrole za unos teksta i odgovarajuće gumbe (mislim da bi bilo ok samo jedan textbox za unos naziva grafa i jedan gumb).
+Pogledajte Core Java za neke detalje o JDialog, i online Swing dokumentaciju po potrebi
+-po pritisku gumba se izvrši kod koji preko JDBC-a (de)serijalizira graf iz/u Graf objekt: taj kod treba napisati.
+Najbolje je direktno serijalizirati listaSusjednosti ArrayList preko toString, no to nije dovoljno jer želimo i da graf izgleda isto kada se učita, što znači da treba zasebno serijalizirati i Krug objekte koji su u listi 'krugovi' u Površina.java
+Te dvije stavke mogu ići u dva stupca SQLite tablice
+(segmenti se ne moraju spremati jer će se ionako rekonstruirati kada budete stvorili graf, ali pazite da ga stvorite (grafički), nakon učitavanja, koristeći metode dodajKrug i dodajSegment)
+
+

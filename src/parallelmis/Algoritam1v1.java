@@ -11,6 +11,11 @@ public class Algoritam1v1 extends Algoritam1 { // TODO: ovo po mjerenjima (vidi 
     // pa bi trebali koristiti neke još veće grafove da vidimo kada se zaista
     // paralelnost isplati i koja implementacija konzistentno pobjeđuje.
     
+    // Moguće optimizacije: 
+    // * paralelizirati particioniranje i računanje vjerojatnosti
+    // pomoću dodatne, nulte barijere koja se samo jedanput prođe za sve dretve.
+    // * paralelizirati b2kraj() tako da sve dretve paralelno ubacuju u I
+    
     public Algoritam1v1(Graf graf, int brojDretvi) {
         super(graf, brojDretvi);
     }

@@ -22,7 +22,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JComponent;
 import misgui.ProgramFrame.Akcija;
-import parallelmis.Algoritam1v4;
+import misgui.ProgramFrame.TipObjave;
+import parallelmis.Algoritam1v3;
 import parallelmis.Graf;
 
 /**
@@ -43,7 +44,7 @@ public class Površina extends JComponent {
     private Krug zadnjiKrug; // kraj brida
     private Collection<Integer> obojeniKrugovi = List.of(); // oni iz rješenja, radi bržeg brisanja
     private Segment trenutniSeg;
-    private Rectangle2D testni = new Rectangle2D.Double();
+    private final Rectangle2D testni = new Rectangle2D.Double();
     
     private Graf graf = new Graf();
     private Akcija akcija = Akcija.NEMA;
@@ -65,7 +66,7 @@ public class Površina extends JComponent {
                         }
                         else if (event.getClickCount() >= 2) {
                             akcija = Akcija.NEMA;
-                            okvir.resetirajGumbe();
+                            okvir.objavi(TipObjave.RESETIRAJ_GUMBE, null);
                         }
                         break;
                     case DODAJ_BRID:
@@ -79,7 +80,7 @@ public class Površina extends JComponent {
                         else if (event.getClickCount() >= 2) {
                             prviKrug = zadnjiKrug = null;
                             akcija = Akcija.NEMA;
-                            okvir.resetirajGumbe();
+                            okvir.objavi(TipObjave.RESETIRAJ_GUMBE, null);
                         }
                         break;
                     case DODAJ_KRAJ:
@@ -100,7 +101,7 @@ public class Površina extends JComponent {
                             repaint();
                             prviKrug = zadnjiKrug = null;
                             akcija = Akcija.NEMA;
-                            okvir.resetirajGumbe();
+                            okvir.objavi(TipObjave.RESETIRAJ_GUMBE, null);
                         }
                         break;
                     case BRIŠI:
@@ -131,7 +132,7 @@ public class Površina extends JComponent {
                     }
                     
                     trenutniKrug.pomakni(e.getX(), e.getY());
-                    okvir.objaviPromjenu();
+                    okvir.objavi(TipObjave.PROMJENA, null);
                     repaint();
                 }
             }
@@ -249,7 +250,7 @@ public class Površina extends JComponent {
                 break;
             case SEQ:
                 if (graf.dajBrojVrhova() == 0)
-                    okvir.objaviRezultat(null);
+                    okvir.objavi(TipObjave.REZULTAT, null);
                 else {
                     var zadatak = CompletableFuture.supplyAsync(() -> {
                         return graf.sequentialMIS();
@@ -260,9 +261,9 @@ public class Površina extends JComponent {
                 break;
             case PAR:
                 if (graf.dajBrojVrhova() == 0)
-                    okvir.objaviRezultat(null);
+                    okvir.objavi(TipObjave.REZULTAT, null);
                 else {
-                    var zadatak = new Algoritam1v4(graf).dajZadatak(); //TODO: dodaj druge varijante, štopaj i usporedi vremena
+                    var zadatak = new Algoritam1v3(graf).dajZadatak();
                     zadatak.thenAccept(this::procesirajRezultat);
                 }   this.akcija = Akcija.NEMA;
                 break;
@@ -277,8 +278,8 @@ public class Površina extends JComponent {
         obojeniKrugovi = rez;
         
         repaint();
-        okvir.objaviRezultat(rez);
-        okvir.objaviPromjenu();
+        okvir.objavi(TipObjave.REZULTAT, rez);
+        okvir.objavi(TipObjave.PROMJENA, null);
     }
     
     private Krug pronađiKrug(Point2D točka) {
@@ -306,7 +307,7 @@ public class Površina extends JComponent {
         graf.dodajVrh();
         
         repaint();
-        okvir.objaviPromjenu();
+        okvir.objavi(TipObjave.PROMJENA, null);
     }
     
     private void dodajSegment(Krug k1, Krug k2) {
@@ -317,7 +318,7 @@ public class Površina extends JComponent {
         
         repaint();
         zadnjiKrug = null;
-        okvir.objaviPromjenu();
+        okvir.objavi(TipObjave.PROMJENA, null);
     }
     
     private void ukloniKrug(Krug k) {
@@ -335,7 +336,7 @@ public class Površina extends JComponent {
         krugovi.remove(i);
                 
         repaint();
-        okvir.objaviPromjenu();
+        okvir.objavi(TipObjave.PROMJENA, null);
     }
     
     private void ukloniSegment(Segment s) {
@@ -346,7 +347,7 @@ public class Površina extends JComponent {
         segmenti.remove(s);
         
         repaint();
-        okvir.objaviPromjenu();
+        okvir.objavi(TipObjave.PROMJENA, null);
     }
     
     public void očisti() {
@@ -355,6 +356,6 @@ public class Površina extends JComponent {
         graf = new Graf();
         
         repaint();
-        okvir.objaviPromjenu();
+        okvir.objavi(TipObjave.PROMJENA, null);
     }
 }

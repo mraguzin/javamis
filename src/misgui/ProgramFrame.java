@@ -42,8 +42,8 @@ public class ProgramFrame extends JFrame {
     private static final Color GUMB_AKTIVAN = Color.RED;
     private final Color GUMB_NEAKTIVAN;
        
-    public enum Tip {
-        KRUG, SEGMENT;
+    public enum TipObjave {
+        REZULTAT, RESETIRAJ_GUMBE, PROMJENA;
     }
     
     public enum Akcija {
@@ -51,7 +51,6 @@ public class ProgramFrame extends JFrame {
         // DODAJ_KRAJ označava stanje u kojem čekamo klik za zadnji kraj brida
     }
     
-    private Tip klik;
     private Akcija trenutnaAkcija;
     private Površina površina;
     private JPanel panel;
@@ -95,19 +94,13 @@ public class ProgramFrame extends JFrame {
         });
         gumbSeq.addActionListener((ActionEvent e) -> {
             resetirajGumbe();
-            gumbi.forEach((gumb) -> {
-                gumb.setEnabled(false); // ćemo tu mijenjati boju?
-            });
-            
+            omogućiGumbe(false);
             omogućiMenije(false);            
             površina.obavijesti(Akcija.SEQ);
         });
         gumbPar.addActionListener((ActionEvent e) -> {
             resetirajGumbe();
-            gumbi.forEach((gumb) -> {
-                gumb.setEnabled(false);
-            });
-            
+            omogućiGumbe(false);            
             omogućiMenije(false);
             površina.obavijesti(Akcija.PAR);
         });
@@ -120,6 +113,12 @@ public class ProgramFrame extends JFrame {
         
         add(panel);
         menuSetup();
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                izlaz();
+            }
+        });
         
         pack();
     }
@@ -132,13 +131,6 @@ public class ProgramFrame extends JFrame {
         menu.add(fileMenu);
         menu.add(editMenu);
         stavke = new ArrayList<>();
-        
-        addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosing(WindowEvent e) {
-                izlaz();
-            }
-        });
         
         // File
         var spremiAkcija = new AbstractAction("Spremi", new ImageIcon("disketa.gif")) {
@@ -242,12 +234,30 @@ public class ProgramFrame extends JFrame {
             i.setEnabled(b);
     }
     
-    public void objaviSnimanje() {
+    private void omogućiGumbe(boolean b) {
+        for (var i : gumbi)
+            i.setEnabled(b);
+    }
+    
+    private void objaviSnimanje() {
         postojiPromjena = false;
         setTitle(ProgramFrame.NASLOV);
     }
     
-    public void objaviPromjenu() {
+    public void objavi(TipObjave objava, Collection<Integer> rezultat) {
+        switch (objava) {
+            case RESETIRAJ_GUMBE:
+                resetirajGumbe();
+                break;
+            case REZULTAT:
+                objaviRezultat(rezultat);
+                break;
+            case PROMJENA:
+                objaviPromjenu();
+        }
+    }
+    
+    private void objaviPromjenu() {
         postojiPromjena = true;
         setTitle("* " + ProgramFrame.NASLOV);
     }
@@ -257,11 +267,8 @@ public class ProgramFrame extends JFrame {
         return new Dimension(ŠIRINA, VISINA);
     }
     
-    public void objaviRezultat(Collection<Integer> rezultat) {
-        gumbi.forEach((gumb) -> {
-            gumb.setEnabled(true);
-        });
-        
+    private void objaviRezultat(Collection<Integer> rezultat) {
+        omogućiGumbe(true);
         omogućiMenije(true);
         
         if (rezultat == null) {
@@ -272,7 +279,7 @@ public class ProgramFrame extends JFrame {
         // TODO: štopanje, neke dodatne poruke...?
     }
     
-    public void resetirajGumbe() {
+    private void resetirajGumbe() {
         aktivan = null;
         gumbi.forEach((gumb) -> {
             gumb.setBackground(GUMB_NEAKTIVAN);
@@ -280,9 +287,8 @@ public class ProgramFrame extends JFrame {
     }
     
     private class GumbAkcija implements ActionListener {
-        private Color boja;
-        private Akcija akcija;
-        private JButton gumb;
+        private final Akcija akcija;
+        private final JButton gumb;
         
         public GumbAkcija(Akcija akcija, JButton gumb) {
             this.akcija = akcija;
