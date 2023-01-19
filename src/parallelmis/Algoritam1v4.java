@@ -1,23 +1,12 @@
 package parallelmis;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.TreeMap;
-import java.util.TreeSet;
-import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -29,9 +18,9 @@ import java.util.logging.Logger;
  * Vremenski, ovo je *najsporija* implementacija i možemo je zanemariti (uostalom, ima i bugova!)
  */
 public class Algoritam1v4 extends Algoritam1 {
-    private final List<LinkedHashSet<Integer>> Vpart2 = particionirajVrhove2(brojDretvi);
-    private final LinkedHashSet<Integer> Xstar = new LinkedHashSet<>();
-    private final ArrayList<LinkedHashSet<Integer>> kopijaListe = new ArrayList<>(n);
+    private final List<LinkedHashSet<Integer>> particijaVrhova2 = particionirajVrhove2(brojDretvi);
+    private final LinkedHashSet<Integer> nezavisniVrhoviZvijezda = new LinkedHashSet<>();
+    private final ArrayList<LinkedHashSet<Integer>> kopijaListe = new ArrayList<>(brojVrhova);
     private final Phaser phaser1, phaser2;
 
     public Algoritam1v4(Graf graf) {
@@ -40,9 +29,9 @@ public class Algoritam1v4 extends Algoritam1 {
     
     public Algoritam1v4(Graf graf, int brojDretvi) {
         super(graf, brojDretvi);
-        this.I = new ConcurrentLinkedQueue<>();
+        this.maxNezavisanGraf = new ConcurrentLinkedQueue<>();
         
-        for (int i = 0; i < n; ++i) {
+        for (int i = 0; i < brojVrhova; ++i) {
             kopijaListe.add(new LinkedHashSet<>(listaSusjednosti.get(i)));
         }
         
@@ -63,23 +52,19 @@ public class Algoritam1v4 extends Algoritam1 {
         };
     }
     
-    private void postavi() {
-        
-    }
-    
     @Override
     protected void b2kraj() {
-        Xstar.clear();
+        nezavisniVrhoviZvijezda.clear();
         
-        for (int v : X) {
-            I.add(v);
-            Xstar.add(v);
-            Xstar.addAll(kopijaListe.get(v));
+        for (int v : nezavisniVrhovi) {
+            maxNezavisanGraf.add(v);
+            nezavisniVrhoviZvijezda.add(v);
+            nezavisniVrhoviZvijezda.addAll(kopijaListe.get(v));
             }
     }
     
     protected class Algoritam1impl implements Runnable {
-        private int id;
+        private final int id;
         
         public Algoritam1impl(int id) {
             this.id = id;
@@ -87,62 +72,56 @@ public class Algoritam1v4 extends Algoritam1 {
 
         @Override
         public void run() {
-            var Vp = Vpart2.get(id);
+            var vrhoviParticije = particijaVrhova2.get(id);
             int test = 1;
         boolean dretvaGotova = false;
         
         do {
-        for (int i = 0; i < nIteracija; ++i) {
-            for (int v : Vp) {
+        for (int i = 0; i < brojIteracija; ++i) {
+            for (int v : vrhoviParticije) {
                 double p = 1.0 / (2.0 * listaSusjednosti.get(v).size());
                 if (p < Double.POSITIVE_INFINITY) {
                     double odabir = ThreadLocalRandom.current().nextDouble();
                     if (p < odabir)
-                        X.add(v);
+                        nezavisniVrhovi.add(v);
                     }
                 else
-                    X.add(v);
+                    nezavisniVrhovi.add(v);
                 }
             }
         
         phaser1.arriveAndAwaitAdvance();
         
-        for (int i : Vp) {
+        for (int i : vrhoviParticije) {
             for (int j : listaSusjednosti.get(i)) {
-                if (V.contains(j) && X.contains(i) && X.contains(j)) {
-                    if (listaSusjednosti.get(i).size() <= listaSusjednosti.get(j).size()) {
-                        if (listaSusjednosti.get(i).size() < listaSusjednosti.get(j).size())
-                            X.remove(i);
-                        else if (i < j)
-                            X.remove(i);
-                        else
-                            X.remove(j);
-                    }
-                    else
-                        X.remove(j);
+                if (sviVrhovi.contains(j) && nezavisniVrhovi.contains(i) && nezavisniVrhovi.contains(j)) {
+                    int kojiJeVeći = Integer.compare(listaSusjednosti.get(i).size(), listaSusjednosti.get(j).size());
+                    if(kojiJeVeći < 0) nezavisniVrhovi.remove(i);
+                    else if (kojiJeVeći > 0) nezavisniVrhovi.remove(j);
+                    else nezavisniVrhovi.remove(Math.min(i, j));
                 }
             }
         }
         
         phaser2.arriveAndAwaitAdvance();
-        Vp.removeAll(Xstar);
+        vrhoviParticije.removeAll(nezavisniVrhoviZvijezda);
         if (id == 0)
-            X.clear(); // Ovo nije atomično, ali to je ok (u najgorem slučaju može
+            nezavisniVrhovi.clear(); // Ovo nije atomično, ali to je ok (u najgorem slučaju može
         //doći do višestrukog procesiranja vrhova u X, što je beskorisno,
         // ali i dalje korektno). Treba izmjeriti vremena na jako velikim i
         //gustim grafovima da vidimo kako ovo zaista utječe na perf.
-        for (int v : Vp) {
-            if (Xstar.contains(v))
-                V.remove(v);
+        for (int v : vrhoviParticije) {
+            if (nezavisniVrhoviZvijezda.contains(v))
+                sviVrhovi.remove(v);
         }
         
-        if (Vp.isEmpty()) {
+        if (vrhoviParticije.isEmpty()) {
             if (!dretvaGotova) {
-                test = brojač.decrementAndGet();
+                test = brojačParticija.decrementAndGet();
                 dretvaGotova = true;
             }
             else
-                test = brojač.get();
+                test = brojačParticija.get();
         }
         } while (test != 0);
         
@@ -155,19 +134,19 @@ public class Algoritam1v4 extends Algoritam1 {
     protected Collection<Integer> impl() {
         List<Thread> dretve = new ArrayList<>(brojDretvi);
         for (int i = 0; i < brojDretvi; ++i) {
-            Thread d = new Thread(new Algoritam1impl(i));
-            dretve.add(d);
-            d.start();
+            Thread dretva = new Thread(new Algoritam1impl(i));
+            dretve.add(dretva);
+            dretva.start();
         }
         
-        for (Thread d : dretve)
+        for (Thread dretva : dretve)
             try {
-                d.join();
+                dretva.join();
             } catch (InterruptedException ex) {
                 Logger.getLogger(Algoritam1v2.class.getName()).log(Level.SEVERE, null, ex);
             }
         
-        return I;
+        return maxNezavisanGraf;
     }
 
     

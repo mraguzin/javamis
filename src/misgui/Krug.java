@@ -63,11 +63,9 @@ public class Krug extends Ellipse2D.Float {
     public boolean equals(Object k) {
         if (this == k)
             return true;
-        
-        if (k instanceof Krug) {
-            Krug krug = (Krug)k;
-            if (krug.x == x && krug.y == y && krug.radijus == radijus)
-                return true;
+
+        if (k instanceof Krug krug) {
+            return krug.x == x && krug.y == y && krug.radijus == radijus;
         }
             
         return false;

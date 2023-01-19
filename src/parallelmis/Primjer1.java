@@ -1,6 +1,5 @@
 package parallelmis;
 
-import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -9,7 +8,7 @@ import java.util.concurrent.ExecutionException;
  */
 public class Primjer1 {
     
-    public static void main(String args[]) throws InterruptedException, ExecutionException {
+    public static void main(String[] args) throws InterruptedException, ExecutionException {
         Graf instance = new Graf();
         instance.dodajVrh();
         instance.dodajVrh();  //   *----*-----*

@@ -1,8 +1,6 @@
 package parallelmis;
 
 import java.util.List;
-import java.util.Set;
-import java.util.concurrent.ExecutionException;
 
 /**
  *
@@ -10,7 +8,7 @@ import java.util.concurrent.ExecutionException;
  */
 public class Primjer2 {
     
-    public static void main(String[] args) throws InterruptedException, ExecutionException {
+    public static void main(String[] args) {
         Graf kocka = new Graf();
         kocka.dodajVrh();
         kocka.dodajVrh();
@@ -36,7 +34,7 @@ public class Primjer2 {
         
         List<Integer> result = kocka.sequentialMIS();
         System.out.println(result.toString());
-        
+
         var future = new Algoritam1v2(kocka).dajZadatak();
         future.thenAccept((rez) -> System.out.println(rez.toString()));
         
