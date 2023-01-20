@@ -146,8 +146,9 @@ public class Algoritam1v2 extends Algoritam1 {
             }
                 
             for (int i = 0; i < brojDretvi; ++i) {
-                vrhovi.set(i, new LinkedHashSet<>(Vpart2.get(i)));
-                vrhovi.get(i).retainAll(Xstar); // Vp ∩ X*
+                //vrhovi.set(i, new LinkedHashSet<>(Vpart2.get(i)));
+                //vrhovi.get(i).retainAll(Xstar); // Vp ∩ X*
+                vrhovi.set(i, Xstar);
             }
     }
     

@@ -3,6 +3,7 @@ package parallelmis;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 
 /**
  *
@@ -36,14 +37,18 @@ public class Primjer2 {
         
         List<Integer> result = kocka.sequentialMIS();
         System.out.println(result.toString());
+        var exec = Executors.newSingleThreadExecutor();
         
-        var future = new Algoritam1v2(kocka).dajZadatak();
+        var future = new Algoritam1v2(kocka).dajZadatak(exec);
         future.thenAccept((rez) -> System.out.println(rez.toString()));
         
-        future = new Algoritam1v3(kocka).dajZadatak();
+        future = new Algoritam1v3(kocka).dajZadatak(exec);
         future.thenAccept((rez) -> System.out.println(rez.toString()));
         
-        future = new Algoritam1v4(kocka).dajZadatak();
-        future.thenAccept((rez) -> System.out.println(rez.toString()));
+        future = new Algoritam1v1(kocka).dajZadatak(exec);
+        future.thenAccept((rez) -> {
+            System.out.println(rez.toString());
+            exec.shutdownNow();
+                });
     }
 }
