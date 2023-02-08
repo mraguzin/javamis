@@ -38,7 +38,8 @@ public abstract class Algoritam1 {
     protected List<LinkedHashSet<Integer>> particijaVrhova;
     protected Collection<Integer> sviVrhovi;
     protected Collection<Integer> maxNezavisanGraf;
-    protected Set<Integer> nezavisniVrhovi;
+    protected final Set<Integer> nezavisniVrhovi;
+    protected final Set<Integer> Xstar2;
     protected List<? extends Collection<Integer>> listaSusjednosti; // read-only
     protected final AtomicInteger brojačParticija; // 0 znači da smo gotovi
     protected final AtomicBoolean gotovo = new AtomicBoolean(false);
@@ -57,6 +58,8 @@ public abstract class Algoritam1 {
         this.nezavisniVrhovi = new ConcurrentSkipListSet<>();
         this.listaSusjednosti = graf.dajListuSusjednosti();
         this.brojačParticija = new AtomicInteger(brojDretvi);
+        this.Xstar2 = new ConcurrentSkipListSet<>();
+        
         this.vrhovi = new ArrayList<>(brojDretvi);
         for (int i = 0; i < brojDretvi; ++i)
             vrhovi.add(new LinkedHashSet<>());
@@ -64,8 +67,8 @@ public abstract class Algoritam1 {
         this.barrier0 = new CyclicBarrier(brojDretvi);
         this.barrier1 = new CyclicBarrier(brojDretvi);
         this.barrier2 = new CyclicBarrier(brojDretvi, this::b2kraj);
-        this.barrier2mod = new CyclicBarrier(brojDretvi);
         this.barrier3 = new CyclicBarrier(brojDretvi, this::b3kraj);
+        this.barrier2mod = new CyclicBarrier(brojDretvi, this::b2dodkraj);
     }
     
     public Algoritam1(Graf graf) {
@@ -99,10 +102,10 @@ public abstract class Algoritam1 {
             // svaka dretva odredila svoje vrhove i krenula na posao
             // ovdje isto treba izračunati vjerojatnosti za odabir onih vrhova
             // koje vidi
-            int init = id * vrhovaPoDretvi;
-            for (int i = init; i < Math.min(init + vrhovaPoDretvi, brojVrhova); ++i) {
+            int start = id * vrhovaPoDretvi;
+            int end = Math.min(start + vrhovaPoDretvi, brojVrhova);
+            for (int i = start; i < end; ++i)
                 vrhoviTrenutneDretve.add(i);
-            }
             
             try {
                 barrier0.await();
@@ -146,19 +149,34 @@ public abstract class Algoritam1 {
         }
 
         // treća i zadnja faza je uklanjanje svih vrhova nezavisnog grafa i njihovih susjeda iz sviVrhovi
-
+        
+                try {
+                    // treća i zadnja faza je uklanjanje X iz V
+                    barrier2mod.await();
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(Algoritam1.class.getName()).log(Level.SEVERE, null, ex);
+                } catch (BrokenBarrierException ex) {
+                    Logger.getLogger(Algoritam1.class.getName()).log(Level.SEVERE, null, ex);
+                }
+        
         // određivanje vrhova koje treba eliminirati
-        var zaUkloniti = new LinkedHashSet<Integer>();
-        for (int v : vrhoviTrenutneDretve) {
-            if (nezavisniVrhovi.contains(v)) {
-                sviVrhovi.remove(v);
-                sviVrhovi.removeAll(listaSusjednosti.get(v));
-                zaUkloniti.add(v);
-                zaUkloniti.addAll(listaSusjednosti.get(v));
+        for (int i = start; i < end; ++i) {
+            if (nezavisniVrhovi.contains(i)) {
+                maxNezavisanGraf.add(i);
+                Xstar2.add(i);
+                Xstar2.addAll(listaSusjednosti.get(i));
             }
         }
+        
+                try {
+                    barrier2.await();
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(Algoritam1.class.getName()).log(Level.SEVERE, null, ex);
+                } catch (BrokenBarrierException ex) {
+                    Logger.getLogger(Algoritam1.class.getName()).log(Level.SEVERE, null, ex);
+                }
 
-        vrhoviTrenutneDretve.removeAll(zaUkloniti);
+        vrhoviTrenutneDretve.removeAll(Xstar2);
 
         if (!dretvaGotova && vrhoviTrenutneDretve.isEmpty()) {
             dretvaGotova = true;
@@ -178,7 +196,14 @@ public abstract class Algoritam1 {
         return Math.min(Runtime.getRuntime().availableProcessors(), graf.dajBrojVrhova());
     }
     
-    protected void b2kraj() {}
+    protected void b2kraj() {
+        sviVrhovi.removeAll(Xstar2);
+    }
+    
+    protected void b2dodkraj() {
+        Xstar2.clear();
+        Xstar2.addAll(nezavisniVrhovi);
+    }
     
     protected void b3kraj() {
         nezavisniVrhovi.clear();
