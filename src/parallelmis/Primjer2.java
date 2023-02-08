@@ -37,7 +37,6 @@ public class Primjer2 {
         
         List<Integer> result = kocka.sequentialMIS();
         System.out.println(result.toString());
-        var exec = Executors.newSingleThreadExecutor();
         
         var exec = Executors.newSingleThreadExecutor();
         var future = new Algoritam1v2(kocka).dajZadatak(exec);
