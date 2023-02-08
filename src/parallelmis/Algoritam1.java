@@ -59,11 +59,11 @@ public abstract class Algoritam1 {
         this.listaSusjednosti = graf.dajListuSusjednosti();
         this.brojačParticija = new AtomicInteger(brojDretvi);
         this.Xstar2 = new ConcurrentSkipListSet<>();
-        
+
         this.vrhovi = new ArrayList<>(brojDretvi);
         for (int i = 0; i < brojDretvi; ++i)
             vrhovi.add(new LinkedHashSet<>());
-        
+
         this.barrier0 = new CyclicBarrier(brojDretvi);
         this.barrier1 = new CyclicBarrier(brojDretvi);
         this.barrier2 = new CyclicBarrier(brojDretvi, this::b2kraj);
