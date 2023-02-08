@@ -1,9 +1,9 @@
 package parallelmis;
 
-import java.awt.EventQueue;
-import javax.swing.ImageIcon;
-import javax.swing.JFrame;
 import misgui.ProgramFrame;
+
+import javax.swing.*;
+import java.awt.*;
 
 /**
  *

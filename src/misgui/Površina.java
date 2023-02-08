@@ -11,15 +11,10 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionListener;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Scanner;
 import java.util.concurrent.CompletableFuture;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.swing.JComponent;
 import misgui.ProgramFrame.Akcija;
 import misgui.ProgramFrame.TipObjave;
@@ -33,7 +28,7 @@ import parallelmis.Graf;
 public class Površina extends JComponent {
     private static final int ŠIRINA = 600;
     private static final int VISINA = 400;
-    private static final float R = 10.0f; // default radijus čvorova
+    private static final float RADIJUS = 10.0f; // default radijus čvorova
     private static final double EPSILON = 10.0; // duljina stranice kvadrata
     // za testiranje pripadnosti točke liniji
     
@@ -43,8 +38,8 @@ public class Površina extends JComponent {
     private Krug prviKrug; // početak brida
     private Krug zadnjiKrug; // kraj brida
     private Collection<Integer> obojeniKrugovi = List.of(); // oni iz rješenja, radi bržeg brisanja
-    private Segment trenutniSeg;
-    private final Rectangle2D testni = new Rectangle2D.Double();
+    private Segment trenutniSegment;
+    private final Rectangle2D testniRectangle2D = new Rectangle2D.Double();
     
     private Graf graf = new Graf();
     private Akcija akcija = Akcija.NEMA;
@@ -55,83 +50,91 @@ public class Površina extends JComponent {
         this.okvir = okvir;
                 
         addMouseListener(new MouseAdapter() {
+            private void resetirajGumbe() {
+                akcija = Akcija.NEMA;
+                okvir.objavi(TipObjave.RESETIRAJ_GUMBE, null);
+            }
+
+            private void dodajVrh(MouseEvent event) {
+                if (trenutniKrug == null) {
+                    dodajKrug(event.getPoint());
+                }
+                else if (event.getClickCount() >= 2) {
+                    resetirajGumbe();
+                }
+            }
+
+            private void dodajBrid(MouseEvent event) {
+                if (trenutniKrug != null) {
+                    trenutniKrug.aktiviraj();
+                    repaint();
+                    prviKrug = trenutniKrug;
+                    zadnjiKrug = null;
+                    akcija = Akcija.DODAJ_KRAJ; //TODO: dodati poruku u statusbar koja govori da treba kliknuti drugi kraj?
+                }
+                else if (event.getClickCount() >= 2) {
+                    prviKrug = zadnjiKrug = null;
+                    resetirajGumbe();
+                }
+            }
+
+            private void dodajKraj() {
+                if (trenutniKrug == null) {
+                    prviKrug.resetiraj();
+                    repaint();
+                    prviKrug = zadnjiKrug = null;
+                    resetirajGumbe();
+                    return;
+                }
+
+                if (trenutniKrug == prviKrug) {
+                    prviKrug.resetiraj();
+                    repaint();
+                    prviKrug = null;
+                    akcija = Akcija.DODAJ_BRID;
+                }
+                else {
+                    zadnjiKrug = trenutniKrug;
+                    dodajSegment(prviKrug, zadnjiKrug);
+                }
+            }
+
+            private void briši() {
+                if (trenutniKrug != null)
+                    ukloniKrug(trenutniKrug);
+                else if (trenutniSegment != null)
+                    ukloniSegment(trenutniSegment);
+            }
+
             @Override
             public void mouseClicked(MouseEvent event) {
                 trenutniKrug = pronađiKrug(event.getPoint());
-                trenutniSeg = pronađiSeg(event.getPoint());
+                trenutniSegment = pronađiSegment(event.getPoint());
                 switch (akcija) {
-                    case DODAJ_VRH:
-                        if (trenutniKrug == null) {
-                            dodajKrug(event.getPoint());
-                        }
-                        else if (event.getClickCount() >= 2) {
-                            akcija = Akcija.NEMA;
-                            okvir.objavi(TipObjave.RESETIRAJ_GUMBE, null);
-                        }
-                        break;
-                    case DODAJ_BRID:
-                        if (trenutniKrug != null) {
-                            trenutniKrug.aktiviraj();
-                            repaint();
-                            prviKrug = trenutniKrug;
-                            zadnjiKrug = null;
-                            akcija = Akcija.DODAJ_KRAJ; //TODO: dodati poruku u statusbar koja govori da treba kliknuti drugi kraj?
-                        }
-                        else if (event.getClickCount() >= 2) {
-                            prviKrug = zadnjiKrug = null;
-                            akcija = Akcija.NEMA;
-                            okvir.objavi(TipObjave.RESETIRAJ_GUMBE, null);
-                        }
-                        break;
-                    case DODAJ_KRAJ:
-                        if (trenutniKrug != null) {
-                            if (trenutniKrug == prviKrug) {
-                                prviKrug.resetiraj();
-                                repaint();
-                                prviKrug = null;
-                                akcija = Akcija.DODAJ_BRID;
-                            }
-                            else {
-                                zadnjiKrug = trenutniKrug;
-                                dodajSegment(prviKrug, zadnjiKrug);
-                            }   
-                        }
-                        else {
-                            prviKrug.resetiraj();
-                            repaint();
-                            prviKrug = zadnjiKrug = null;
-                            akcija = Akcija.NEMA;
-                            okvir.objavi(TipObjave.RESETIRAJ_GUMBE, null);
-                        }
-                        break;
-                    case BRIŠI:
-                        if (trenutniKrug != null)
-                            ukloniKrug(trenutniKrug);
-                        else if (trenutniSeg != null)
-                            ukloniSegment(trenutniSeg);
-                        break;
-                    default:
-                        break;
+                    case DODAJ_VRH -> dodajVrh(event);
+                    case DODAJ_BRID -> dodajBrid(event);
+                    case DODAJ_KRAJ -> dodajKraj();
+                    case BRIŠI -> briši();
                 }
             }
         });
         
         addMouseMotionListener(new MouseMotionListener() {
             @Override
-            public void mouseDragged(MouseEvent e) {
+            public void mouseDragged(MouseEvent event) {
                 if (akcija == Akcija.NEMA && trenutniKrug != null) {
-                    int i = krugovi.indexOf(trenutniKrug);
-                    for (int v : graf.dajListu().get(i)) {
+                    int indexTrenutnogKruga = krugovi.indexOf(trenutniKrug);
+                    for (int v : graf.dajListuSusjednostiKruga(indexTrenutnogKruga)) {
                         var tmp = new Segment(trenutniKrug, krugovi.get(v));
                         for (var seg : segmenti) {
                             if (seg.equals(tmp)) {
-                                seg.pomakniKraj(trenutniKrug, e.getX(), e.getY());
+                                seg.pomakniKraj(trenutniKrug, event.getX(), event.getY());
                                 break;
                             }
                         }
                     }
                     
-                    trenutniKrug.pomakni(e.getX(), e.getY());
+                    trenutniKrug.pomakni(event.getX(), event.getY());
                     okvir.objavi(TipObjave.PROMJENA, null);
                     repaint();
                 }
@@ -140,15 +143,12 @@ public class Površina extends JComponent {
             @Override
             public void mouseMoved(MouseEvent e) {
                 trenutniKrug = pronađiKrug(e.getPoint());
-                trenutniSeg = pronađiSeg(e.getPoint());
-                
-                if (null == akcija) setCursor(Cursor.getDefaultCursor());
-                else switch (akcija) {
+                trenutniSegment = pronađiSegment(e.getPoint());
+                setCursor(Cursor.getDefaultCursor());
+                switch (akcija) {
                     case DODAJ_VRH:
                         if (trenutniKrug == null)
                             setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
-                        else
-                            setCursor(Cursor.getDefaultCursor());
                         break;
                     case DODAJ_BRID:
                     case DODAJ_KRAJ:
@@ -158,11 +158,9 @@ public class Površina extends JComponent {
                             else
                                 setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
                         }
-                        else
-                            setCursor(Cursor.getDefaultCursor());
                         break;
                     case BRIŠI:
-                        if (trenutniKrug == null && trenutniSeg == null)
+                        if (trenutniKrug == null && trenutniSegment == null)
                             setCursor(Cursor.getDefaultCursor());
                         else
                             setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -170,11 +168,6 @@ public class Površina extends JComponent {
                     case NEMA:
                         if (trenutniKrug != null)
                             setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
-                        else
-                            setCursor(Cursor.getDefaultCursor());
-                        break;
-                    default:
-                        setCursor(Cursor.getDefaultCursor());
                         break;
                 }
             }
@@ -208,17 +201,53 @@ public class Površina extends JComponent {
     public void učitajGraf(Graf g) {
         očisti();
         int i = 0;
-        for (float y = 2*R; y < VISINA - R; y += 3*R) {
-            for (float x = 2*R; x < ŠIRINA - R && i < g.dajBrojVrhova(); x += 3*R,++i) {
+        for (float y = 2* RADIJUS; y < VISINA - RADIJUS; y += 3* RADIJUS) {
+            for (float x = 2* RADIJUS; x < ŠIRINA - RADIJUS && i < g.dajBrojVrhova(); x += 3* RADIJUS,++i) {
               dodajKrug(new Point2D.Float(x, y));
             }
         }
         
         for (i = 0; i < g.dajBrojVrhova(); ++i) {
-            for (int j : g.dajListu().get(i)) {
+            for (int j : g.dajListuSusjednostiKruga(i)) {
                 dodajSegment(krugovi.get(i), krugovi.get(j));
             }
         }
+    }
+
+
+    private void akcijaNema() {
+        zadnjiKrug = null;
+        if (prviKrug != null) {
+            prviKrug.resetiraj();
+            prviKrug = null;
+            repaint();
+        }
+    }
+
+    private void akcijaOčisti(Akcija stara) {
+        očisti();
+        this.akcija = stara;
+    }
+
+    private void akcijaSeq() {
+        if (graf.dajBrojVrhova() == 0)
+            okvir.objavi(TipObjave.REZULTAT, null);
+        else {
+            var zadatak = CompletableFuture.supplyAsync(() -> graf.sequentialMIS());
+
+            zadatak.thenAccept(this::procesirajRezultat);
+        }
+        this.akcija = Akcija.NEMA;
+    }
+
+    private void akcijaPar() {
+        if (graf.dajBrojVrhova() == 0)
+            okvir.objavi(TipObjave.REZULTAT, null);
+        else {
+            var zadatak = new Algoritam1v3(graf).dajZadatak();
+            zadatak.thenAccept(this::procesirajRezultat);
+        }
+        this.akcija = Akcija.NEMA;
     }
     
     public void obavijesti(Akcija novaAkcija) {
@@ -237,38 +266,10 @@ public class Površina extends JComponent {
         
         this.akcija = novaAkcija;
         if (null != novaAkcija) switch (novaAkcija) {
-            case NEMA:
-                zadnjiKrug = null;
-                if (prviKrug != null) {
-                    prviKrug.resetiraj();
-                    prviKrug = null;
-                    repaint();
-                }   break;
-            case OČISTI:
-                očisti();
-                this.akcija = stara;
-                break;
-            case SEQ:
-                if (graf.dajBrojVrhova() == 0)
-                    okvir.objavi(TipObjave.REZULTAT, null);
-                else {
-                    var zadatak = CompletableFuture.supplyAsync(() -> {
-                        return graf.sequentialMIS();
-                    });
-                    
-                    zadatak.thenAccept(this::procesirajRezultat);
-                }   this.akcija = Akcija.NEMA;
-                break;
-            case PAR:
-                if (graf.dajBrojVrhova() == 0)
-                    okvir.objavi(TipObjave.REZULTAT, null);
-                else {
-                    var zadatak = new Algoritam1v3(graf).dajZadatak();
-                    zadatak.thenAccept(this::procesirajRezultat);
-                }   this.akcija = Akcija.NEMA;
-                break;
-            default:
-                break;
+            case NEMA -> akcijaNema();
+            case OČISTI -> akcijaOčisti(stara);
+            case SEQ -> akcijaSeq();
+            case PAR -> akcijaPar();
         }
     }
     
@@ -291,19 +292,18 @@ public class Površina extends JComponent {
         return null;
     }
     
-    private Segment pronađiSeg(Point2D točka) {
-        testni.setFrame(točka.getX()-EPSILON/2, točka.getY()-EPSILON/2,
-                EPSILON, EPSILON);
+    private Segment pronađiSegment(Point2D točka) {
+        testniRectangle2D.setFrame(točka.getX()-EPSILON/2, točka.getY()-EPSILON/2, EPSILON, EPSILON);
         for (var s : segmenti) {
-            if (s.intersects(testni))
+            if (s.intersects(testniRectangle2D))
                 return s;
         }
         
         return null;
     }
     
-    private void dodajKrug(Point2D c) {
-        krugovi.add(new Krug((float)c.getX(), (float)c.getY(), R));
+    private void dodajKrug(Point2D point) {
+        krugovi.add(new Krug((float)point.getX(), (float)point.getY(), RADIJUS));
         graf.dodajVrh();
         
         repaint();
@@ -326,7 +326,7 @@ public class Površina extends JComponent {
             return;
         
         int i = krugovi.indexOf(k);
-        var susjedi = graf.dajListu().get(i);
+        var susjedi = graf.dajListuSusjednostiKruga(i);
         for (int v : susjedi) {
             Segment tmp = new Segment(krugovi.get(v), k);
             segmenti.remove(tmp);

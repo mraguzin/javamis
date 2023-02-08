@@ -11,7 +11,7 @@ import java.util.concurrent.Executors;
  */
 public class Primjer2 {
     
-    public static void main(String[] args) throws InterruptedException, ExecutionException {
+    public static void main(String[] args) {
         Graf kocka = new Graf();
         kocka.dodajVrh();
         kocka.dodajVrh();
@@ -39,6 +39,7 @@ public class Primjer2 {
         System.out.println(result.toString());
         var exec = Executors.newSingleThreadExecutor();
         
+        var exec = Executors.newSingleThreadExecutor();
         var future = new Algoritam1v2(kocka).dajZadatak(exec);
         future.thenAccept((rez) -> System.out.println(rez.toString()));
         

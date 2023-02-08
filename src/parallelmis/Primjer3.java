@@ -11,53 +11,53 @@ import org.apache.commons.lang3.time.StopWatch;
  */
 public class Primjer3 {
     public static void main(String[] args) throws Exception {
-        final StopWatch sw = new StopWatch();
-        
-        var f = new File("mis_graf1.gr"); // poveliki graf, ali trebao bi nam i veći
-        Graf g = Graf.stvoriIzDatoteke(f);
-        sw.start();
-        var rez = g.sequentialMIS();
-        sw.stop();
-        double t = sw.getTime(TimeUnit.MILLISECONDS);
-        sw.reset();
+        final StopWatch stopWatch = new StopWatch();
+
+        var file = new File("mis_graf1.gr"); // poveliki graf, ali trebao bi nam i veći
+        Graf graf = Graf.stvoriIzDatoteke(file);
+        stopWatch.start();
+        var rez = graf.sequentialMIS();
+        stopWatch.stop();
+        double time = stopWatch.getTime(TimeUnit.MILLISECONDS);
+        stopWatch.reset();
         System.out.println(rez.toString());
-        System.out.println("seq t=" + t + " ms");
-        
+        System.out.println("seq time=" + time + " ms");
+
         var exec = Executors.newSingleThreadExecutor();
-        
-        sw.start();
-        var zadatak = new Algoritam1v4(g).dajZadatak(exec);
+
+        stopWatch.start();
+        var zadatak = new Algoritam1v4(graf).dajZadatak(exec);
         var rez2 = zadatak.get();
-        sw.stop();
-        t = sw.getTime(TimeUnit.MILLISECONDS);
-        System.out.println("parv4 t=" + t + " ms");
-        sw.reset();
-        
-        sw.start();
-        zadatak = new Algoritam1v3(g).dajZadatak(exec);
+        stopWatch.stop();
+        time = stopWatch.getTime(TimeUnit.MILLISECONDS);
+        System.out.println("parv4 time=" + time + " ms");
+        stopWatch.reset();
+
+        stopWatch.start();
+        zadatak = new Algoritam1v3(graf).dajZadatak(exec);
         rez2 = zadatak.get();
-        sw.stop();
-        t = sw.getTime(TimeUnit.MILLISECONDS);
-        System.out.println("parv3 t=" + t + " ms");
-        sw.reset();
-        
-        sw.start();
-        zadatak = new Algoritam1v2(g).dajZadatak(exec);
+        stopWatch.stop();
+        time = stopWatch.getTime(TimeUnit.MILLISECONDS);
+        System.out.println("parv3 time=" + time + " ms");
+        stopWatch.reset();
+
+        stopWatch.start();
+        zadatak = new Algoritam1v2(graf).dajZadatak(exec);
         rez2 = zadatak.get();
-        sw.stop();
-        t = sw.getTime(TimeUnit.MILLISECONDS);
-        System.out.println("parv2 t=" + t + " ms");
-        sw.reset();
-        
-        sw.start();
-        zadatak = new Algoritam1v1(g).dajZadatak(exec);
+        stopWatch.stop();
+        time = stopWatch.getTime(TimeUnit.MILLISECONDS);
+        System.out.println("parv2 time=" + time + " ms");
+        stopWatch.reset();
+
+        stopWatch.start();
+        zadatak = new Algoritam1v1(graf).dajZadatak(exec);
         rez2 = zadatak.get();
-        sw.stop();
-        t = sw.getTime(TimeUnit.MILLISECONDS);
-        System.out.println("parv1 t=" + t + " ms");
-        sw.reset();
-        
+        stopWatch.stop();
+        time = stopWatch.getTime(TimeUnit.MILLISECONDS);
+        System.out.println("parv1 time=" + time + " ms");
+        stopWatch.reset();
+
         exec.shutdownNow();
     }
-    
+
 }

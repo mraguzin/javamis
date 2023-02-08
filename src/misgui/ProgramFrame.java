@@ -1,34 +1,17 @@
 package misgui;
 
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
+import parallelmis.Graf;
+
+import javax.swing.*;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import javax.swing.AbstractAction;
-import javax.swing.ImageIcon;
-import javax.swing.JButton;
-import javax.swing.JFileChooser;
-import javax.swing.JFrame;
-import javax.swing.JMenu;
-import javax.swing.JMenuBar;
-import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.KeyStroke;
-import parallelmis.Graf;
 
 /**
  *
@@ -43,21 +26,20 @@ public class ProgramFrame extends JFrame {
     private final Color GUMB_NEAKTIVAN;
        
     public enum TipObjave {
-        REZULTAT, RESETIRAJ_GUMBE, PROMJENA;
+        REZULTAT, RESETIRAJ_GUMBE, PROMJENA
     }
     
     public enum Akcija {
-        DODAJ_VRH, DODAJ_BRID, DODAJ_KRAJ, BRIŠI, OČISTI, SEQ, PAR, NEMA;
+        DODAJ_VRH, DODAJ_BRID, DODAJ_KRAJ, BRIŠI, OČISTI, SEQ, PAR, NEMA
         // DODAJ_KRAJ označava stanje u kojem čekamo klik za zadnji kraj brida
     }
     
     private Akcija trenutnaAkcija;
-    private Površina površina;
-    private JPanel panel;
+    private final Površina površina;
+    private final JPanel panel;
     private JButton aktivan;
-    private List<JButton> gumbi;
+    private final List<JButton> gumbi;
     private List<JMenuItem> stavke;
-    private JMenuBar menu;
     private JFileChooser chooser;
     
     
@@ -79,10 +61,8 @@ public class ProgramFrame extends JFrame {
         GUMB_NEAKTIVAN = gumbPar.getBackground();
         
         panel = new JPanel();
-        gumbi.forEach((gumb) -> {
-            panel.add(gumb);
-        });
-        
+        gumbi.forEach(panel::add);
+
         panel.add(površina);
         
         gumbVrhovi.addActionListener(new GumbAkcija(Akcija.DODAJ_VRH, gumbVrhovi));
@@ -124,6 +104,7 @@ public class ProgramFrame extends JFrame {
     }
     
     private void menuSetup() {
+        JMenuBar menu;
         menu = new JMenuBar();
         setJMenuBar(menu);
         var fileMenu = new JMenu("File");
@@ -203,13 +184,8 @@ public class ProgramFrame extends JFrame {
    "Postoje izmjene koje nisu spremljene. Želite li ih spremiti prije izlaza?",
    "Prije izlaska", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
                     switch (odabir) {
-                        case JOptionPane.YES_OPTION:
-                            spremi();
-                            break;
-                        case JOptionPane.NO_OPTION:
-                            break;
-                        default:
-                            return;
+                        case JOptionPane.YES_OPTION -> spremi();
+                        case JOptionPane.NO_OPTION -> {}
                     }
                 }
                 
@@ -217,8 +193,9 @@ public class ProgramFrame extends JFrame {
     }
     
     private JFileChooser getChooser() {
-        if (chooser == null)
+        if (chooser == null) {
             chooser = new JFileChooser();
+        }
         
         return chooser;
     }
@@ -230,13 +207,13 @@ public class ProgramFrame extends JFrame {
     }
     
     private void omogućiMenije(boolean b) {
-        for (var i : stavke)
-            i.setEnabled(b);
+        for (var stavka : stavke)
+            stavka.setEnabled(b);
     }
     
     private void omogućiGumbe(boolean b) {
-        for (var i : gumbi)
-            i.setEnabled(b);
+        for (var gumb : gumbi)
+            gumb.setEnabled(b);
     }
     
     private void objaviSnimanje() {
@@ -246,14 +223,9 @@ public class ProgramFrame extends JFrame {
     
     public void objavi(TipObjave objava, Collection<Integer> rezultat) {
         switch (objava) {
-            case RESETIRAJ_GUMBE:
-                resetirajGumbe();
-                break;
-            case REZULTAT:
-                objaviRezultat(rezultat);
-                break;
-            case PROMJENA:
-                objaviPromjenu();
+            case RESETIRAJ_GUMBE -> resetirajGumbe();
+            case REZULTAT -> objaviRezultat(rezultat);
+            case PROMJENA -> objaviPromjenu();
         }
     }
     
@@ -281,9 +253,7 @@ public class ProgramFrame extends JFrame {
     
     private void resetirajGumbe() {
         aktivan = null;
-        gumbi.forEach((gumb) -> {
-            gumb.setBackground(GUMB_NEAKTIVAN);
-        });
+        gumbi.forEach((gumb) -> gumb.setBackground(GUMB_NEAKTIVAN));
     }
     
     private class GumbAkcija implements ActionListener {

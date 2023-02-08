@@ -19,31 +19,31 @@ public class Segment extends Line2D.Float {
         double y0 = krug0.dajY();
         double x1 = krug1.dajX();
         double y1 = krug1.dajY();
-        double R0 = krug0.dajRadijus();
-        double R1 = krug1.dajRadijus();
+        double radijus0 = krug0.dajRadijus();
+        double radijus1 = krug1.dajRadijus();
         this.krug0 = krug0;
         this.krug1 = krug1;
         
         double dx = x1 - x0;
         double dy = y1 - y0;
         if (dx != 0) {
-            double k = dy / dx;
+            double koeficijentSmjera = dy / dx;
             double alpha = Math.atan2(dy, dx);
-            double x0t = Math.cos(alpha) * R0;
-            double y0t = x0t * k;
-            double l = Math.sqrt(dx*dx + dy*dy);
+            double x0t = Math.cos(alpha) * radijus0;
+            double y0t = x0t * koeficijentSmjera;
+            double udaljenostTocaka = Math.sqrt(dx*dx + dy*dy);
             x0 += x0t;
             y0 += y0t;
             
-            double x1t = x0t / R0 * (l - R1 - R0);
-            double y1t = x1t * k;
+            double x1t = x0t / radijus0 * (udaljenostTocaka - radijus1 - radijus0);
+            double y1t = x1t * koeficijentSmjera;
             x1 = x0 + x1t;
             y1 = y0 + y1t;
         }
         else {
             double sign = Math.signum(dy);
-            y0 += R0 * sign;
-            y1 -= R1 * sign;
+            y0 += radijus0 * sign;
+            y1 -= radijus1 * sign;
         }
         
         super.x1 = (float)x0;
@@ -82,11 +82,9 @@ public class Segment extends Line2D.Float {
         if (this == o)
             return true;
         
-        if (o instanceof Segment) {
-            Segment s = (Segment) o;
-            if (s.krug0.equals(krug0) && s.krug1.equals(krug1) ||
-                    s.krug0.equals(krug1) && s.krug1.equals(krug0))
-                return true;
+        if (o instanceof Segment s) {
+            return s.krug0.equals(krug0) && s.krug1.equals(krug1) ||
+                    s.krug0.equals(krug1) && s.krug1.equals(krug0);
         }
         
         return false;
