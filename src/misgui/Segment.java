@@ -82,7 +82,8 @@ public class Segment extends Line2D.Float {
         if (this == o)
             return true;
         
-        if (o instanceof Segment s) {
+        if (o instanceof Segment) {
+            Segment s = (Segment)o;
             return s.krug0.equals(krug0) && s.krug1.equals(krug1) ||
                     s.krug0.equals(krug1) && s.krug1.equals(krug0);
         }
