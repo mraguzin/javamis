@@ -38,15 +38,16 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         // ako želimo koristiti binarno pretraživanje ispod, moramo paziti da ubacujemo
         // indekse susjeda na pravo mjesto
         int idx = Collections.binarySearch(dajListuSusjednostiKruga(i), j);
-        if (idx >= 0) return; // ne dupliciramo bridove
+        if (idx >= 0)
+            return; // ne dupliciramo bridove
         dajListuSusjednostiKruga(i).add(-idx-1, j);
         idx = Collections.binarySearch(dajListuSusjednostiKruga(j), i);
         dajListuSusjednostiKruga(j).add(-idx-1, i);
     }
     
     public void ukloniBrid(int i, int j) {
-        dajListuSusjednostiKruga(i).remove(j);
-        dajListuSusjednostiKruga(j).remove(i);
+        dajListuSusjednostiKruga(i).remove(dajListuSusjednostiKruga(i).indexOf(j));
+        dajListuSusjednostiKruga(j).remove(dajListuSusjednostiKruga(j).indexOf(i));
     }
     
     public void ukloniVrh(int idx) { // PAZI: ovo efektivno *renumerira* vrhove --- bitno za GUI impl.!
@@ -72,7 +73,6 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
                     tmp2[k]--;
                 
                 var l = Arrays.asList(tmp2);
-                System.out.println("tmp2 "+Arrays.toString(tmp2));
                 tmp1[i] = new ArrayList<>(l);
             }
         }
@@ -83,8 +83,6 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
             listaSusjednosti = new ArrayList<>();
         
         brojVrhova--;
-        
-        System.out.println(listaSusjednosti);
     }
     
     public static Graf stvoriIzDatoteke(File f) throws Exception {
@@ -159,6 +157,16 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         }
         
         return maxNezavisanGraf;
+    }
+
+    public String toString() {
+        StringBuilder izlaz = new StringBuilder();
+        for(int k = 0; k < dajListuSusjednosti().size(); ++k) {
+            izlaz.append(k).append(" -> ");
+            izlaz.append(dajListuSusjednostiKruga(k));
+            izlaz.append("\n");
+        }
+        return izlaz.toString();
     }
 
 }
