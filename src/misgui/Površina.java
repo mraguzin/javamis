@@ -1,11 +1,6 @@
 package misgui;
 
-import java.awt.Color;
-import java.awt.Cursor;
-import java.awt.Dimension;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
+import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionListener;
@@ -14,12 +9,16 @@ import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
-import javax.swing.JComponent;
+import javax.swing.*;
+
 import misgui.ProgramFrame.Akcija;
 import misgui.ProgramFrame.TipObjave;
 import parallelmis.Algoritam1v3;
 import parallelmis.Graf;
+import parallelmis.editmenuactions.UndoRedo;
+import parallelmis.editmenuactions.UndoRedoAkcija;
 
 /**
  *
@@ -32,32 +31,40 @@ public class Površina extends JComponent {
     private static final double EPSILON = 10.0; // duljina stranice kvadrata
     // za testiranje pripadnosti točke liniji
     
-    private ArrayList<Krug> krugovi = new ArrayList<>();
-    private ArrayList<Segment> segmenti = new ArrayList<>();
+    private final ArrayList<Krug> krugovi = new ArrayList<>();
+    private final ArrayList<Segment> segmenti = new ArrayList<>();
     private Krug trenutniKrug; // onaj nad kojim je miš (ako postoji)
     private Krug prviKrug; // početak brida
     private Krug zadnjiKrug; // kraj brida
     private Collection<Integer> obojeniKrugovi = List.of(); // oni iz rješenja, radi bržeg brisanja
     private Segment trenutniSegment;
     private final Rectangle2D testniRectangle2D = new Rectangle2D.Double();
-    
     private Graf graf = new Graf();
+    public UndoRedo undoRedo = new UndoRedo(this);
     private Akcija akcija = Akcija.NEMA;
     private final ProgramFrame okvir;
-    
+
+    public JMenuItem undo = new JMenuItem("Undo");
+    public JMenuItem redo = new JMenuItem("Redo");
+
+    public enum IzvorAkcije {
+        UNDOREDO, KORISNIK, GENERIRANJE, UČITAVANJE
+    }
+
+
     public Površina(ProgramFrame okvir) {
         setVisible(true);
         this.okvir = okvir;
                 
         addMouseListener(new MouseAdapter() {
-            private void resetirajGumbe() {
+            public void resetirajGumbe() {
                 akcija = Akcija.NEMA;
                 okvir.objavi(TipObjave.RESETIRAJ_GUMBE, null);
             }
 
             private void dodajVrh(MouseEvent event) {
                 if (trenutniKrug == null) {
-                    dodajKrug(event.getPoint());
+                    dodajKrug(event.getPoint(), IzvorAkcije.KORISNIK);
                 }
                 else if (event.getClickCount() >= 2) {
                     resetirajGumbe();
@@ -95,15 +102,27 @@ public class Površina extends JComponent {
                 }
                 else {
                     zadnjiKrug = trenutniKrug;
-                    dodajSegment(prviKrug, zadnjiKrug);
+                    dodajSegment(prviKrug, zadnjiKrug, IzvorAkcije.KORISNIK);
                 }
             }
 
             private void briši() {
                 if (trenutniKrug != null)
-                    ukloniKrug(trenutniKrug);
+                    ukloniKrug(trenutniKrug, IzvorAkcije.KORISNIK);
                 else if (trenutniSegment != null)
-                    ukloniSegment(trenutniSegment);
+                    ukloniSegment(trenutniSegment, IzvorAkcije.KORISNIK);
+            }
+
+            private void generirajVrhove() {
+                JTextField textField = okvir.getTextFieldZaGeneriranje();
+                textField.setVisible(true);
+                generiranjeVrhova(IzvorAkcije.KORISNIK);
+            }
+
+            private void generirajBridove() {
+                JTextField textField = okvir.getTextFieldZaGeneriranje();
+                textField.setVisible(true);
+                generiranjeBridova();
             }
 
             @Override
@@ -115,6 +134,8 @@ public class Površina extends JComponent {
                     case DODAJ_BRID -> dodajBrid(event);
                     case DODAJ_KRAJ -> dodajKraj();
                     case BRIŠI -> briši();
+                    case GENERIRAJ_VRHOVE -> generirajVrhove();
+                    case GENERIRAJ_BRIDOVE -> generirajBridove();
                 }
             }
         });
@@ -172,7 +193,7 @@ public class Površina extends JComponent {
                 }
             }
         });
-    }    
+    }
     
     @Override
     public Dimension getPreferredSize() {
@@ -199,17 +220,17 @@ public class Površina extends JComponent {
     }
     
     public void učitajGraf(Graf g) {
-        očisti();
+        očisti(IzvorAkcije.KORISNIK);
         int i = 0;
         for (float y = 2* RADIJUS; y < VISINA - RADIJUS; y += 3* RADIJUS) {
             for (float x = 2* RADIJUS; x < ŠIRINA - RADIJUS && i < g.dajBrojVrhova(); x += 3* RADIJUS,++i) {
-              dodajKrug(new Point2D.Float(x, y));
+              dodajKrug(new Point2D.Float(x, y), IzvorAkcije.UČITAVANJE);
             }
         }
         
         for (i = 0; i < g.dajBrojVrhova(); ++i) {
             for (int j : g.dajListuSusjednostiKruga(i)) {
-                dodajSegment(krugovi.get(i), krugovi.get(j));
+                dodajSegment(krugovi.get(i), krugovi.get(j), IzvorAkcije.UČITAVANJE);
             }
         }
     }
@@ -225,7 +246,7 @@ public class Površina extends JComponent {
     }
 
     private void akcijaOčisti(Akcija stara) {
-        očisti();
+        očisti(IzvorAkcije.KORISNIK);
         this.akcija = stara;
     }
 
@@ -302,55 +323,155 @@ public class Površina extends JComponent {
         return null;
     }
     
-    private void dodajKrug(Point2D point) {
-        krugovi.add(new Krug((float)point.getX(), (float)point.getY(), RADIJUS));
+    public Krug dodajKrug(Point2D point, IzvorAkcije izvorAkcije) {
+        Krug noviKrug = new Krug(point, RADIJUS);
+        krugovi.add(noviKrug);
         graf.dodajVrh();
-        
+        if(izvorAkcije == IzvorAkcije.KORISNIK) {
+            UndoRedoAkcija undoRedoAkcija = new UndoRedoAkcija(
+                    UndoRedoAkcija.TipElementa.VRH,
+                    UndoRedoAkcija.TipAkcije.BRIŠI,
+                    noviKrug);
+            undoRedo.dodajUndoAkciju(undoRedoAkcija);
+        }
+
         repaint();
         okvir.objavi(TipObjave.PROMJENA, null);
+        return noviKrug;
     }
     
-    private void dodajSegment(Krug k1, Krug k2) {
-        var novi = new Segment(k1, k2);
-        if (!segmenti.contains(novi))
-            segmenti.add(new Segment(k1, k2));
+    public Segment dodajSegment(Krug k1, Krug k2, IzvorAkcije izvorAkcije) {
+        var noviSegment = new Segment(k1, k2);
+        if (!segmenti.contains(noviSegment)) {
+            segmenti.add(noviSegment);
+        }
         graf.dodajBrid(krugovi.indexOf(k1), krugovi.indexOf(k2));
-        
+
+        if(izvorAkcije == IzvorAkcije.KORISNIK) {
+            UndoRedoAkcija undoRedoAkcija = new UndoRedoAkcija(
+                    UndoRedoAkcija.TipElementa.BRID,
+                    UndoRedoAkcija.TipAkcije.BRIŠI,
+                    noviSegment);
+            undoRedo.dodajUndoAkciju(undoRedoAkcija);
+        }
+
         repaint();
         zadnjiKrug = null;
         okvir.objavi(TipObjave.PROMJENA, null);
+        return noviSegment;
     }
     
-    private void ukloniKrug(Krug k) {
-        if (k == null)
+    public void ukloniKrug(Krug krug, IzvorAkcije izvorAkcije) {
+        if (krug == null)
             return;
-        
-        int i = krugovi.indexOf(k);
+
+        UndoRedoAkcija undoRedoAkcija = new UndoRedoAkcija(
+                UndoRedoAkcija.TipElementa.VRH,
+                UndoRedoAkcija.TipAkcije.DODAJ,
+                krug);
+
+        int i = krugovi.indexOf(krug);
         var susjedi = graf.dajListuSusjednostiKruga(i);
         for (int v : susjedi) {
-            Segment tmp = new Segment(krugovi.get(v), k);
+            Segment tmp = new Segment(krugovi.get(v), krug);
             segmenti.remove(tmp);
+            undoRedoAkcija.dodajDodatniSegment(tmp);
         }
         
         graf.ukloniVrh(i);
         krugovi.remove(i);
+        if(izvorAkcije == IzvorAkcije.KORISNIK) {
+            undoRedo.dodajUndoAkciju(undoRedoAkcija);
+        }
                 
         repaint();
         okvir.objavi(TipObjave.PROMJENA, null);
     }
     
-    private void ukloniSegment(Segment s) {
-        if (s == null)
+    public void ukloniSegment(Segment segment, IzvorAkcije izvorAkcije) {
+        if (segment == null)
             return;
         
-        graf.ukloniBrid(krugovi.indexOf(s.dajKrug1()), krugovi.indexOf(s.dajKrug2()));
-        segmenti.remove(s);
+        graf.ukloniBrid(krugovi.indexOf(segment.dajKrug1()), krugovi.indexOf(segment.dajKrug2()));
+        segmenti.remove(segment);
+
+        if(izvorAkcije == IzvorAkcije.KORISNIK) {
+            UndoRedoAkcija undoRedoAkcija = new UndoRedoAkcija(
+                    UndoRedoAkcija.TipElementa.BRID,
+                    UndoRedoAkcija.TipAkcije.DODAJ,
+                    segment);
+            undoRedo.dodajUndoAkciju(undoRedoAkcija);
+        }
         
         repaint();
         okvir.objavi(TipObjave.PROMJENA, null);
     }
+
+    public void generiranjeVrhova(IzvorAkcije izvorAkcije) {
+        UndoRedoAkcija undoRedoAkcija = new UndoRedoAkcija(UndoRedoAkcija.TipElementa.VIŠE_ELEMENATA, UndoRedoAkcija.TipAkcije.BRIŠI);
+        int brojZaGenerirati = okvir.getBrojZaGeneriranje();
+        if(brojZaGenerirati == 0) return;
+        for(int i = 0; i < brojZaGenerirati; ++i) {
+            Random random = new Random();
+            int xKoordinata = random.nextInt(ŠIRINA);
+            int yKoordinata = random.nextInt(VISINA);
+            Krug krug = dodajKrug(new Point2D.Float((float) xKoordinata, (float) yKoordinata), IzvorAkcije.GENERIRANJE);
+            undoRedoAkcija.dodajDodatniVrh(krug);
+        }
+        if(izvorAkcije == IzvorAkcije.KORISNIK) {
+            undoRedo.dodajUndoAkciju(undoRedoAkcija);
+        }
+        okvir.resetirajBrojZaGeneriranje();
+    }
+
+    private void generiranjeBridova() {
+        UndoRedoAkcija undoRedoAkcija = new UndoRedoAkcija(UndoRedoAkcija.TipElementa.VIŠE_ELEMENATA, UndoRedoAkcija.TipAkcije.BRIŠI);
+        int brojZaGenerirati = okvir.getBrojZaGeneriranje();
+        if(brojZaGenerirati == 0) return;
+        // moguće je generirati najviše (n povrh 2 - brojSegmenata) bridova
+        if (brojZaGenerirati > ((krugovi.size() * (krugovi.size() - 1) / 2)- segmenti.size())) {
+            JOptionPane.showMessageDialog(null,
+                    "Broj bridova koje želite generirati je veći od broja bridova koje je moguće generirati!\n" +
+                            "Pokušajte smanjiti broj bridova za generirati ili dodati još vrhova u graf.");
+            return;
+        }
+        for(int i = 0; i < brojZaGenerirati; ++i) {
+            Random random = new Random();
+            int krug1 = random.nextInt(krugovi.size() - 1);
+            while(graf.dajListuSusjednostiKruga(krug1).size() == krugovi.size() - 1) {
+                ++krug1;
+                if(krug1 == krugovi.size())
+                    krug1 = 0;
+            }
+            int krug2 = random.nextInt(krugovi.size() - 1);
+            while(graf.dajListuSusjednostiKruga(krug1).contains(krug2) || krug1 == krug2) {
+                ++krug2;
+                if(krug2 == krugovi.size())
+                    krug2 = 0;
+            }
+
+            Segment segment = dodajSegment(krugovi.get(krug1), krugovi.get(krug2), IzvorAkcije.GENERIRANJE);
+            undoRedoAkcija.dodajDodatniSegment(segment);
+        }
+
+        undoRedo.dodajUndoAkciju(undoRedoAkcija);
+        okvir.resetirajBrojZaGeneriranje();
+    }
     
-    public void očisti() {
+    public void očisti(IzvorAkcije izvorAkcije) {
+        if(izvorAkcije == IzvorAkcije.KORISNIK) {
+            UndoRedoAkcija undoRedoAkcija = new UndoRedoAkcija(
+                    UndoRedoAkcija.TipElementa.VIŠE_ELEMENATA,
+                    UndoRedoAkcija.TipAkcije.DODAJ);
+            for (Krug krug : krugovi) {
+                undoRedoAkcija.dodajDodatniVrh(krug);
+            }
+            for (Segment segment : segmenti) {
+                undoRedoAkcija.dodajDodatniSegment(segment);
+            }
+            undoRedo.dodajUndoAkciju(undoRedoAkcija);
+        }
+
         krugovi.clear();
         segmenti.clear();
         graf = new Graf();

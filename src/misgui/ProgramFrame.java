@@ -3,11 +3,11 @@ package misgui;
 import parallelmis.Graf;
 
 import javax.swing.*;
+import javax.swing.border.CompoundBorder;
+import javax.swing.border.EmptyBorder;
+import javax.swing.border.LineBorder;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
+import java.awt.event.*;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -21,7 +21,7 @@ import java.util.List;
 public class ProgramFrame extends JFrame {
     public static final String NASLOV = "Maksimalan nezavisni skup";
     private static final int ŠIRINA = 800;
-    private static final int VISINA = 800;
+    private static final int VISINA = 600;
     private static final Color GUMB_AKTIVAN = Color.RED;
     private final Color GUMB_NEAKTIVAN;
        
@@ -30,7 +30,7 @@ public class ProgramFrame extends JFrame {
     }
     
     public enum Akcija {
-        DODAJ_VRH, DODAJ_BRID, DODAJ_KRAJ, BRIŠI, OČISTI, SEQ, PAR, NEMA
+        DODAJ_VRH, DODAJ_BRID, DODAJ_KRAJ, BRIŠI, OČISTI, SEQ, PAR, GENERIRAJ_VRHOVE, GENERIRAJ_BRIDOVE, NEMA
         // DODAJ_KRAJ označava stanje u kojem čekamo klik za zadnji kraj brida
     }
     
@@ -38,12 +38,24 @@ public class ProgramFrame extends JFrame {
     private final Površina površina;
     private final JPanel panel;
     private JButton aktivan;
+    private final JTextField textFieldZaGeneriranje;
+    private int brojZaGeneriranje;
     private final List<JButton> gumbi;
     private List<JMenuItem> stavke;
     private JFileChooser chooser;
     
-    
     private boolean postojiPromjena = false;
+
+    public JTextField getTextFieldZaGeneriranje() {
+        return textFieldZaGeneriranje;
+    }
+    public int getBrojZaGeneriranje() {
+        return brojZaGeneriranje;
+    }
+
+    public void resetirajBrojZaGeneriranje() {
+        brojZaGeneriranje = 0;
+    }
     
     public ProgramFrame() {
         površina = new Površina(this);
@@ -55,8 +67,11 @@ public class ProgramFrame extends JFrame {
         var gumbOčisti= new JButton("Očisti sve");
         var gumbSeq = new JButton("Riješi sekvencijalno");
         var gumbPar = new JButton("Riješi paralelno");
-        gumbi = List.of(gumbVrhovi, gumbBridovi,
-            gumbBriši, gumbOčisti, gumbSeq, gumbPar);
+        var gumbGenerirajVrhove = new JButton("Generiraj N vrhova");
+        var gumbGenerirajBridove = new JButton("Generiraj M bridova");
+        gumbi = List.of(gumbVrhovi, gumbBridovi, gumbBriši,
+                gumbOčisti, gumbGenerirajVrhove, gumbGenerirajBridove,
+                gumbSeq, gumbPar);
         
         GUMB_NEAKTIVAN = gumbPar.getBackground();
         
@@ -84,12 +99,54 @@ public class ProgramFrame extends JFrame {
             omogućiMenije(false);
             površina.obavijesti(Akcija.PAR);
         });
+        gumbGenerirajVrhove.addActionListener(new GumbAkcija(Akcija.GENERIRAJ_VRHOVE, gumbGenerirajVrhove));
+        gumbGenerirajBridove.addActionListener(new GumbAkcija(Akcija.GENERIRAJ_BRIDOVE, gumbGenerirajBridove));
         gumbVrhovi.setToolTipText("Kliknite na prazno mjesto ploče za postaviti novi vrh");
         gumbBridovi.setToolTipText("Žuti vrh je prvi; kliknite na drugi vrh za spajanje");
         gumbBriši.setToolTipText("Kliknite na vrh ili brid za brisanje");
         gumbOčisti.setToolTipText("Očisti cijelu ploču (izgubit ćete graf!)");
         gumbSeq.setToolTipText("Riješi MIS problem sekvencijalno (sporo)");
         gumbPar.setToolTipText("Riješi MIS problem paralelno (brže za jako velike grafove");
+        gumbGenerirajVrhove.setToolTipText("Generiraj N nasumično razmještenih vrhova");
+        gumbGenerirajBridove.setToolTipText("Generiraj M bridova između nasumičnih vrhova");
+
+        textFieldZaGeneriranje = new JTextField();
+        textFieldZaGeneriranje.setSize(120, 50);
+        textFieldZaGeneriranje.setLocation(540, 40);
+        textFieldZaGeneriranje.setFont(new Font("Calibri", Font.BOLD, 25));
+        textFieldZaGeneriranje.setBackground(new Color(0, 102, 204));
+        textFieldZaGeneriranje.setForeground(Color.WHITE);
+        textFieldZaGeneriranje.setBorder(new CompoundBorder(
+                new LineBorder(Color.BLUE, 2),
+                new EmptyBorder(5, 5, 5, 5)));
+        textFieldZaGeneriranje.setVisible(false);
+
+        textFieldZaGeneriranje.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyTyped(KeyEvent e) {
+                char keyChar = e.getKeyChar();
+                if (!((keyChar >= '0') && (keyChar <= '9') ||
+                        (keyChar == KeyEvent.VK_BACK_SPACE) ||
+                        (keyChar == KeyEvent.VK_DELETE) ||
+                        (keyChar == KeyEvent.VK_ENTER))) {
+                    getToolkit().beep();
+                    e.consume();
+                }
+                if(keyChar == KeyEvent.VK_ENTER) {
+                    String textZaGeneriraj = textFieldZaGeneriranje.getText();
+                    brojZaGeneriranje = Integer.parseInt(textZaGeneriraj);
+                    if(brojZaGeneriranje > 0 && brojZaGeneriranje < 100) {
+                        textFieldZaGeneriranje.setVisible(false);
+                        textFieldZaGeneriranje.setText("");
+                    }
+                    else {
+                        JOptionPane.showMessageDialog(null, "Broj treba biti manji od 100!");
+                    }
+                }
+            }
+        });
+
+        add(textFieldZaGeneriranje);
         
         add(panel);
         menuSetup();
@@ -138,8 +195,8 @@ public class ProgramFrame extends JFrame {
             }
         };
         
-        var učitajItem = new JMenuItem(učitajAkcija);
-        učitajItem.setAccelerator(KeyStroke.getKeyStroke("ctrl O"));
+        var učitajGraf = new JMenuItem(učitajAkcija);
+        učitajGraf.setAccelerator(KeyStroke.getKeyStroke("ctrl O"));
         
         var izlazAkcija = new AbstractAction("Izlaz") {
             @Override
@@ -151,15 +208,14 @@ public class ProgramFrame extends JFrame {
         stavke.add(fileMenu.add(spremiItem));
         stavke.add(fileMenu.add(spremiKaoAkcija));
         fileMenu.addSeparator();
-        stavke.add(fileMenu.add(učitajItem));
+        stavke.add(fileMenu.add(učitajGraf));
         fileMenu.addSeparator();
         fileMenu.add(izlazAkcija);
         
         // Edit
-        // TODO: treba li tu Undo?
-        var uveziItem = new JMenuItem("Uvezi graf");
-        uveziItem.setToolTipText("Graf mora biti u Challenge 9 tekstualnom formatu");
-        uveziItem.addActionListener((ActionEvent e) -> {
+        var uveziGraf = new JMenuItem("Uvezi graf");
+        uveziGraf.setToolTipText("Graf mora biti u Challenge 9 tekstualnom formatu");
+        uveziGraf.addActionListener((ActionEvent e) -> {
             var c = getChooser();
             c.setCurrentDirectory(new File("."));
             int rez = c.showDialog(this, "Uvezi");
@@ -175,7 +231,14 @@ public class ProgramFrame extends JFrame {
                 }
             }
         });
-        stavke.add(editMenu.add(uveziItem));
+        stavke.add(editMenu.add(uveziGraf));
+
+        površina.undo.setEnabled(false);
+        stavke.add(editMenu.add(površina.undo));
+        površina.redo.setEnabled(false);
+        stavke.add(editMenu.add(površina.redo));
+        površina.undo.addActionListener((ActionEvent e) -> površina.undoRedo.izvrsiUndoAkciju());
+        površina.redo.addActionListener((ActionEvent e) -> površina.undoRedo.izvrsiRedoAkciju());
     }
     
     private void izlaz() {
@@ -191,7 +254,7 @@ public class ProgramFrame extends JFrame {
                 
                 System.exit(0);
     }
-    
+
     private JFileChooser getChooser() {
         if (chooser == null) {
             chooser = new JFileChooser();
@@ -254,8 +317,9 @@ public class ProgramFrame extends JFrame {
     private void resetirajGumbe() {
         aktivan = null;
         gumbi.forEach((gumb) -> gumb.setBackground(GUMB_NEAKTIVAN));
+        textFieldZaGeneriranje.setVisible(false);
     }
-    
+
     private class GumbAkcija implements ActionListener {
         private final Akcija akcija;
         private final JButton gumb;

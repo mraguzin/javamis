@@ -2,6 +2,7 @@ package misgui;
 
 import java.awt.Color;
 import java.awt.geom.Ellipse2D;
+import java.awt.geom.Point2D;
 
 /**
  *
@@ -11,7 +12,7 @@ public class Krug extends Ellipse2D.Float {
     private static final Color STANDARDNA = Color.GRAY;
     private static final Color POSEBNA = Color.RED; // za čvorove u rješenju
     private static final Color AKTIVNA = Color.YELLOW; // kada kliknemo na krug
-    
+
     private Color boja;
     private float radijus;
     private float x, y; // centar
@@ -22,6 +23,14 @@ public class Krug extends Ellipse2D.Float {
         this.radijus = radijus;
         this.x = x;
         this.y = y;
+    }
+
+    public Krug(Point2D point, float radijus) {
+        super((float) point.getX() - radijus, (float) point.getY() - radijus, 2.0f * radijus, 2.0f * radijus);
+        this.boja = STANDARDNA;
+        this.radijus = radijus;
+        this.x = (float) point.getX();
+        this.y = (float) point.getY();
     }
     
     public void pomakni(float noviX, float noviY) {
