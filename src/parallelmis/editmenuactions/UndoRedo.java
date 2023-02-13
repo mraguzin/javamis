@@ -1,4 +1,4 @@
-package parallelmis.editMenuActions;
+package parallelmis.editmenuactions;
 
 import misgui.Krug;
 import misgui.Površina;

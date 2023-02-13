@@ -17,8 +17,8 @@ import misgui.ProgramFrame.Akcija;
 import misgui.ProgramFrame.TipObjave;
 import parallelmis.Algoritam1v3;
 import parallelmis.Graf;
-import parallelmis.editMenuActions.UndoRedo;
-import parallelmis.editMenuActions.UndoRedoAkcija;
+import parallelmis.editmenuactions.UndoRedo;
+import parallelmis.editmenuactions.UndoRedoAkcija;
 
 /**
  *
