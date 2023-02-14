@@ -31,7 +31,7 @@ public class Površina extends JComponent {
     private static final double EPSILON = 10.0; // duljina stranice kvadrata
     // za testiranje pripadnosti točke liniji
     
-    private final ArrayList<Krug> krugovi = new ArrayList<>();
+    private ArrayList<Krug> krugovi = new ArrayList<>();
     private final ArrayList<Segment> segmenti = new ArrayList<>();
     private Krug trenutniKrug; // onaj nad kojim je miš (ako postoji)
     private Krug prviKrug; // početak brida
@@ -43,6 +43,7 @@ public class Površina extends JComponent {
     public UndoRedo undoRedo = new UndoRedo(this);
     private Akcija akcija = Akcija.NEMA;
     private final ProgramFrame okvir;
+    private ArrayList<ArrayList<Float>> koordinate = new ArrayList<>();
 
     public JMenuItem undo = new JMenuItem("Undo");
     public JMenuItem redo = new JMenuItem("Redo");
@@ -217,6 +218,26 @@ public class Površina extends JComponent {
             g2.setColor(k.dajBoju());
             g2.fill(k);
         }
+    }
+    
+    public Graf dajGraf()
+    {
+        return graf;
+    }
+    
+    public ArrayList<Krug> dajKrugove()
+    {
+        return krugovi;
+    }
+
+    public void namjestiKrugove(ArrayList<Krug> _krugovi)
+    {
+        krugovi = _krugovi;
+    }
+        
+    public ArrayList<ArrayList<Float>> dajKoordinate()
+    {
+        return koordinate;
     }
     
     public void učitajGraf(Graf g) {

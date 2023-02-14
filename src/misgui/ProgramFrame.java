@@ -8,10 +8,16 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.geom.Point2D;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.*;
+import misgui.Površina.IzvorAkcije;
 
 /**
  *
@@ -24,6 +30,7 @@ public class ProgramFrame extends JFrame {
     private static final int VISINA = 600;
     private static final Color GUMB_AKTIVAN = Color.RED;
     private final Color GUMB_NEAKTIVAN;
+    private static final float R = 10.0f;
        
     public enum TipObjave {
         REZULTAT, RESETIRAJ_GUMBE, PROMJENA
@@ -45,6 +52,10 @@ public class ProgramFrame extends JFrame {
     private JFileChooser chooser;
     
     private boolean postojiPromjena = false;
+    private boolean stariGraf = false;
+    private int idGrafa = 0;
+    private String connectionString = "jdbc:postgresql://java-projekt.postgres.database.azure.com:5432/"
+                                    + "postgres?user=francek&password=Password1&sslmode=require";
 
     public JTextField getTextFieldZaGeneriranje() {
         return textFieldZaGeneriranje;
@@ -85,6 +96,7 @@ public class ProgramFrame extends JFrame {
         gumbBriši.addActionListener(new GumbAkcija(Akcija.BRIŠI, gumbBriši));
         gumbOčisti.addActionListener((ActionEvent e) -> {
             površina.obavijesti(Akcija.OČISTI);
+            stariGraf = false;
             resetirajGumbe();
         });
         gumbSeq.addActionListener((ActionEvent e) -> {
@@ -171,7 +183,7 @@ public class ProgramFrame extends JFrame {
         stavke = new ArrayList<>();
         
         // File
-        var spremiAkcija = new AbstractAction("Spremi", new ImageIcon("disketa.gif")) {
+        var spremiAkcija = new AbstractAction("Spremi u bazu", new ImageIcon("disketa.gif")) {
             @Override
             public void actionPerformed(ActionEvent e) {
                  spremi();
@@ -181,17 +193,10 @@ public class ProgramFrame extends JFrame {
         var spremiItem = new JMenuItem(spremiAkcija);
         spremiItem.setAccelerator(KeyStroke.getKeyStroke("ctrl S"));
         
-        var spremiKaoAkcija = new AbstractAction("Spremi kao") {
+        var učitajAkcija = new AbstractAction("Učitaj iz baze", new ImageIcon("load.gif")) {
             @Override
             public void actionPerformed(ActionEvent e) {
-                // TODO...
-            }
-        };
-        
-        var učitajAkcija = new AbstractAction("Učitaj", new ImageIcon("load.gif")) {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                // TODO: dijalog za učitavanje iz baze
+                ucitaj();
             }
         };
         
@@ -206,7 +211,6 @@ public class ProgramFrame extends JFrame {
         };
         
         stavke.add(fileMenu.add(spremiItem));
-        stavke.add(fileMenu.add(spremiKaoAkcija));
         fileMenu.addSeparator();
         stavke.add(fileMenu.add(učitajGraf));
         fileMenu.addSeparator();
@@ -245,10 +249,11 @@ public class ProgramFrame extends JFrame {
         if (postojiPromjena) {
                     int odabir = JOptionPane.showConfirmDialog(null,
    "Postoje izmjene koje nisu spremljene. Želite li ih spremiti prije izlaza?",
-   "Prije izlaska", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+   "Prije izlaska", JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
                     switch (odabir) {
                         case JOptionPane.YES_OPTION -> spremi();
                         case JOptionPane.NO_OPTION -> {}
+                        case JOptionPane.CANCEL_OPTION -> { return;}
                     }
                 }
                 
@@ -263,10 +268,194 @@ public class ProgramFrame extends JFrame {
         return chooser;
     }
     
+    private void ucitaj()
+    {
+        String url = "jdbc:postgresql://localhost:5432/parallelMSI";
+             
+        String imeGrafa = JOptionPane.showInputDialog("Kako se zove graf koji želite učitati?");
+        if(imeGrafa == null || "".equals(imeGrafa))
+            return;
+        
+        ArrayList<ArrayList<Integer>> listaSusjednosti = new ArrayList<>();
+        ArrayList<ArrayList<Float>> koordinateSvih = new ArrayList<>();
+        
+        if(postojiPromjena) // ako je postojao graf na povrsini prije ucitavanja novog
+        {
+            int odabir =JOptionPane.showConfirmDialog(null, "Želite li sačuvati postojeći graf prije učitavanja novog?",
+                    "Upozorenje!", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            if(odabir == 0)
+                spremi();
+        }
+        
+        površina.očisti(IzvorAkcije.KORISNIK);
+        
+        try 
+        {
+            Connection conn = DriverManager.getConnection(connectionString, "francek", "Password1");
+            String sqlQuery = "SELECT * FROM grafovi "
+                            + "WHERE ime_grafa = '" + imeGrafa + "'";
+            
+            Statement stm = conn.createStatement();
+            ResultSet rs = stm.executeQuery(sqlQuery); // pretrazujemo samo podatke s tocnim imenom grafa
+            
+            int brojVrhova = 1, id_vrha = 0, brojac = 0;
+            
+            ArrayList<Integer> listaSusjedaZaJedanVrh = new ArrayList<>();
+            ArrayList<Float> koordinateVrha = new ArrayList<>();
+            float x_koord, y_koord;
+            
+            while(rs.next())
+            {
+                idGrafa = rs.getInt("id_grafa");
+                if(rs.getInt("id_vrha") == id_vrha) // naisli smo na redak u bazi za vrh za koji vec znamo id i koordinate
+                {                                         // trazimo samo njegovog sljedeceg susjeda
+                    if(brojac == 0)                       // brojac sluzi da samo u prvom prolazu uzmemo koordinate nultog vrha
+                    {                                       
+                        x_koord = rs.getFloat("x_koordinata");
+                        y_koord = rs.getFloat("y_koordinata");
+                        koordinateVrha.add(x_koord);
+                        koordinateVrha.add(y_koord);
+                        ArrayList<Float> kopijaKoordinata = new ArrayList<>();
+                        koordinateVrha.forEach(element -> kopijaKoordinata.add(element));
+                        koordinateSvih.add(kopijaKoordinata);
+                        ++brojac;
+                    }
+                    listaSusjedaZaJedanVrh.add(rs.getInt("id_susjeda"));
+                }
+                else  // dosli smo do novog vrha                          
+                {
+                    ArrayList<Integer> kopijaSusjeda = new ArrayList<>();
+                    listaSusjedaZaJedanVrh.forEach(element -> kopijaSusjeda.add(element)); // treba napraviti deep copy jer se
+                    listaSusjednosti.add(kopijaSusjeda);                                   // objekti kopiraju po referenci
+                    
+                    listaSusjedaZaJedanVrh.clear(); koordinateVrha.clear();                    
+                    ++brojVrhova; ++id_vrha;
+                    listaSusjedaZaJedanVrh.add(rs.getInt("id_susjeda"));
+                    
+                    x_koord = rs.getFloat("x_koordinata");
+                    y_koord = rs.getFloat("y_koordinata");
+                    koordinateVrha.add(x_koord);
+                    koordinateVrha.add(y_koord);
+                    ArrayList<Float> kopijaKoordinata = new ArrayList<>();
+                    koordinateVrha.forEach(element -> kopijaKoordinata.add(element));      // treba napraviti deep copy
+                    koordinateSvih.add(kopijaKoordinata);                    
+                }              
+            }
+            listaSusjednosti.add(listaSusjedaZaJedanVrh);
+        }
+        catch(SQLException e)
+        {
+            JOptionPane.showConfirmDialog(null, "Neuspjelo spajanje na bazu", "Neuspjelo!", 
+                        JOptionPane.OK_CANCEL_OPTION, JOptionPane.INFORMATION_MESSAGE);
+            System.out.println(e.getMessage());
+        }
+        // lista_susjednosti mi sada sadrzi broj vrhova i sve bridove
+        // koordinate_svih sadrze koordinate tocaka potrebnih za crtanje grafa
+
+        ArrayList<Krug> krugovi = new ArrayList<>();
+
+        for(int i = 0; i < koordinateSvih.size(); ++i)
+        {
+            float x_koord = koordinateSvih.get(i).get(0), y_koord = koordinateSvih.get(i).get(1);
+            Krug krug = new Krug(x_koord, y_koord, R);
+            krugovi.add(krug);
+            Point2D c = new Point2D.Float(x_koord, y_koord);
+            površina.dodajKrug(c, IzvorAkcije.UČITAVANJE);
+        }    
+        
+        površina.namjestiKrugove(krugovi);
+
+        for(int i = 0; i < listaSusjednosti.size(); ++i)
+        {
+            for(int j = 0; j < listaSusjednosti.get(i).size(); ++j)
+            {
+                int susjed_od_i = listaSusjednosti.get(i).get(j);
+                if(susjed_od_i != -1)
+                    površina.dodajSegment(krugovi.get(i), krugovi.get(susjed_od_i), IzvorAkcije.UČITAVANJE); 
+            }       
+        }
+        postojiPromjena = false;
+        stariGraf = true;
+    }
+    
     private void spremi()
     {
-        // TODO
+        Graf graf = površina.dajGraf();
+        if(!postojiPromjena || graf.dajBrojVrhova() == 0)
+            return;
         
+        String imeGrafa = "", sqlQuery = "", sqlQuery1;
+        String url = "jdbc:postgresql://localhost:5432/parallelMSI";
+        try(Connection conn = DriverManager.getConnection(connectionString, "francek", "Password1"))
+        {
+            if(stariGraf == false) // ako spremamo graf prvi puta, dajemo novi id, za jedan veci od prijasnjeg najveceg
+            {
+                sqlQuery = "SELECT id_grafa FROM grafovi "
+                        + "ORDER BY id_grafa DESC "
+                        + "LIMIT 1";
+                Statement stm = conn.createStatement();
+                ResultSet rs = stm.executeQuery(sqlQuery);
+                if(rs.next())
+                    idGrafa = rs.getInt("id_grafa") + 1;
+                
+                imeGrafa = JOptionPane.showInputDialog("Unesite ime grafa"); // dajemo ime novom grafu
+                if(imeGrafa == null || "".equals(imeGrafa))
+                    return;
+            }
+            else 
+            {
+                // moramo zapamtiti id i ime grafa ucitanog iz baze                
+                sqlQuery = "SELECT ime_grafa FROM grafovi "
+                         + "WHERE id_grafa = " + idGrafa 
+                         + " LIMIT 1";
+                Statement stm = conn.createStatement();
+                ResultSet rs = stm.executeQuery(sqlQuery);
+                if(rs.next())
+                    imeGrafa = rs.getString("ime_grafa");
+                // TODO: treba izbrisati sve prijašnje zapise o tom grafu iz baze jer ćemo ih kasnije ponovno popuniti
+                
+                sqlQuery1 = "DELETE FROM grafovi "
+                         + "WHERE id_grafa = " + idGrafa;
+                PreparedStatement ps = conn.prepareStatement(sqlQuery1);
+                ps.executeUpdate();
+            }
+            
+            PreparedStatement st = conn.prepareStatement("insert into grafovi"
+                            + "(id_grafa, ime_grafa, id_vrha, id_susjeda, x_koordinata, y_koordinata)"
+                            + "VALUES(?,?,?,?,?,?)");
+                     
+            for(int i = 0; i < graf.dajBrojVrhova(); ++i)
+            {               
+                if(graf.dajListuSusjednosti().get(i).isEmpty())
+                {
+                    st.setInt(1, idGrafa);
+                    st.setString(2,imeGrafa);
+                    st.setInt(3, i);
+                    st.setInt(4, -1); // svi su nam vrhovi id-a 0,1,... pa id susjeda = -1 oznacava da vrh nema susjeda
+                    st.setDouble(5, površina.dajKrugove().get(i).dajX());
+                    st.setDouble(6, površina.dajKrugove().get(i).dajY());
+                    st.executeUpdate();
+                }
+                for(int j = 0; j < graf.dajListuSusjednosti().get(i).size(); ++j)
+                {                   
+                    st.setInt(1, idGrafa);
+                    st.setString(2, imeGrafa);
+                    st.setInt(3, i);
+                    st.setInt(4, graf.dajListuSusjednosti().get(i).get(j));
+                    st.setDouble(5, površina.dajKrugove().get(i).dajX());
+                    st.setDouble(6, površina.dajKrugove().get(i).dajY());
+                    st.executeUpdate();
+                }
+            }
+            JOptionPane.showConfirmDialog(null, "Graf uspješno spremljen u bazu",
+                                        "USPJEH", JOptionPane.OK_CANCEL_OPTION, JOptionPane.INFORMATION_MESSAGE);
+            postojiPromjena = false;
+        }
+        catch(SQLException e) {
+            JOptionPane.showConfirmDialog(null, "Neuspjelo spajanje na bazu", "Neuspjelo!", 
+                    JOptionPane.OK_CANCEL_OPTION, JOptionPane.INFORMATION_MESSAGE);
+            System.out.println(e.getMessage());
+        }
     }
     
     private void omogućiMenije(boolean b) {
