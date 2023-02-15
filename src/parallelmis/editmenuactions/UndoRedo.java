@@ -81,10 +81,10 @@ public class UndoRedo {
 
     public void izvršiAkcijuBriši(UndoRedoAkcija undoRedoAkcija) {
         if(undoRedoAkcija.dajElement() == UndoRedoAkcija.TipElementa.VRH) {
-            površina.ukloniKrug(undoRedoAkcija.dajVrhovi().get(0), Površina.IzvorAkcije.UNDOREDO);
             for(Segment segment : undoRedoAkcija.dajSegmenti()) {
                 površina.ukloniSegment(segment, Površina.IzvorAkcije.UNDOREDO);
             }
+            površina.ukloniKrug(undoRedoAkcija.dajVrhovi().get(0), Površina.IzvorAkcije.UNDOREDO);
         }
         else if(undoRedoAkcija.dajElement() == UndoRedoAkcija.TipElementa.BRID) {
             površina.ukloniSegment(undoRedoAkcija.dajSegmenti().get(0), Površina.IzvorAkcije.UNDOREDO);
@@ -93,7 +93,6 @@ public class UndoRedo {
             for(Segment segment : undoRedoAkcija.dajSegmenti()) {
                 površina.ukloniSegment(segment, Površina.IzvorAkcije.UNDOREDO);
             }
-//            Collections.reverse(undoRedoAkcija.dajVrhovi());
             for(Krug krug : undoRedoAkcija.dajVrhovi()) {
                 površina.ukloniKrug(krug, Površina.IzvorAkcije.UNDOREDO);
             }
