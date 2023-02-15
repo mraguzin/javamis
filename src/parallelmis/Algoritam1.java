@@ -52,7 +52,7 @@ public abstract class Algoritam1 {
         this.graf = graf;
         this.brojVrhova = graf.dajBrojVrhova();
         this.brojDretvi = brojDretvi;
-        this.particijaVrhova = particionirajVrhove2(brojDretvi);
+        //this.particijaVrhova = particionirajVrhove2(brojDretvi);
         this.sviVrhovi = new ConcurrentSkipListSet<>(Arrays.asList(graf.dajVrhove()));
         this.maxNezavisanGraf = new ConcurrentLinkedQueue<>();
         this.nezavisniVrhovi = new ConcurrentSkipListSet<>();

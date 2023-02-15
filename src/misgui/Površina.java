@@ -15,7 +15,7 @@ import javax.swing.*;
 
 import misgui.ProgramFrame.Akcija;
 import misgui.ProgramFrame.TipObjave;
-import parallelmis.Algoritam1v3;
+import parallelmis.Algoritam1v1;
 import parallelmis.Graf;
 import parallelmis.editmenuactions.UndoRedo;
 import parallelmis.editmenuactions.UndoRedoAkcija;
@@ -286,7 +286,7 @@ public class Površina extends JComponent {
         if (graf.dajBrojVrhova() == 0)
             okvir.objavi(TipObjave.REZULTAT, null);
         else {
-            var zadatak = new Algoritam1v3(graf).dajZadatak();
+            var zadatak = new Algoritam1v1(graf).dajZadatak();
             zadatak.thenAccept(this::procesirajRezultat);
         }
         this.akcija = Akcija.NEMA;
