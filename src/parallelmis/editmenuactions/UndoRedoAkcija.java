@@ -56,19 +56,19 @@ public class UndoRedoAkcija {
         this.vrhovi.add(krug);
     }
 
-    public TipAkcije getAkcija() {
+    public TipAkcije dajAkcija() {
         return akcija;
     }
-    public TipElementa getElement() {
+    public TipElementa dajElement() {
         return element;
     }
-    public ArrayList<Segment> getSegmenti() {
+    public ArrayList<Segment> dajSegmenti() {
         return segmenti;
     }
-    public ArrayList<Krug> getVrhovi() {
+    public ArrayList<Krug> dajVrhovi() {
         return vrhovi;
     }
-    public void setAkcija(TipAkcije tipAkcije) {
+    public void postaviAkcija(TipAkcije tipAkcije) {
         this.akcija = tipAkcije;
     }
 }

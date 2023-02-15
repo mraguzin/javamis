@@ -6,6 +6,7 @@ import misgui.Segment;
 
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
+import java.util.Collections;
 
 public class UndoRedo {
     private final int MAX_ACTIONS = 10;
@@ -57,41 +58,43 @@ public class UndoRedo {
     }
 
     public void izvršiAkcijuDodaj(UndoRedoAkcija undoRedoAkcija) {
-        Krug krug1 = undoRedoAkcija.getVrhovi().get(0);
-        if(undoRedoAkcija.getElement() == UndoRedoAkcija.TipElementa.VRH) {
+        if(undoRedoAkcija.dajElement() == UndoRedoAkcija.TipElementa.VRH) {
+            Krug krug1 = undoRedoAkcija.dajVrhovi().get(0);
             površina.dodajKrug(new Point2D.Float(krug1.dajX(), krug1.dajY()), Površina.IzvorAkcije.UNDOREDO);
-            for(Segment segment : undoRedoAkcija.getSegmenti()) {
-                površina.dodajSegment(krug1, segment.dajKrug2(), Površina.IzvorAkcije.UNDOREDO);
+            for(Segment segment : undoRedoAkcija.dajSegmenti()) {
+                površina.dodajSegment(segment.dajKrug1(), segment.dajKrug2(), Površina.IzvorAkcije.UNDOREDO);
             }
         }
-        else if(undoRedoAkcija.getElement() == UndoRedoAkcija.TipElementa.BRID) {
-            površina.dodajSegment(krug1, undoRedoAkcija.getSegmenti().get(0).dajKrug2(), Površina.IzvorAkcije.UNDOREDO);
+        else if(undoRedoAkcija.dajElement() == UndoRedoAkcija.TipElementa.BRID) {
+            Krug krug1 = undoRedoAkcija.dajVrhovi().get(0);
+            površina.dodajSegment(krug1, undoRedoAkcija.dajSegmenti().get(0).dajKrug2(), Površina.IzvorAkcije.UNDOREDO);
         }
-        else if(undoRedoAkcija.getElement() == UndoRedoAkcija.TipElementa.VIŠE_ELEMENATA) {
-            for(Krug krug : undoRedoAkcija.getVrhovi()) {
+        else if(undoRedoAkcija.dajElement() == UndoRedoAkcija.TipElementa.VIŠE_ELEMENATA) {
+            for(Krug krug : undoRedoAkcija.dajVrhovi()) {
                 površina.dodajKrug(new Point2D.Float(krug.dajX(), krug.dajY()), Površina.IzvorAkcije.UNDOREDO);
             }
-            for(Segment segment : undoRedoAkcija.getSegmenti()) {
+            for(Segment segment : undoRedoAkcija.dajSegmenti()) {
                 površina.dodajSegment(segment.dajKrug1(), segment.dajKrug2(), Površina.IzvorAkcije.UNDOREDO);
             }
         }
     }
 
     public void izvršiAkcijuBriši(UndoRedoAkcija undoRedoAkcija) {
-        if(undoRedoAkcija.getElement() == UndoRedoAkcija.TipElementa.VRH) {
-            površina.ukloniKrug(undoRedoAkcija.getVrhovi().get(0), Površina.IzvorAkcije.UNDOREDO);
-            for(Segment segment : undoRedoAkcija.getSegmenti()) {
+        if(undoRedoAkcija.dajElement() == UndoRedoAkcija.TipElementa.VRH) {
+            površina.ukloniKrug(undoRedoAkcija.dajVrhovi().get(0), Površina.IzvorAkcije.UNDOREDO);
+            for(Segment segment : undoRedoAkcija.dajSegmenti()) {
                 površina.ukloniSegment(segment, Površina.IzvorAkcije.UNDOREDO);
             }
         }
-        else if(undoRedoAkcija.getElement() == UndoRedoAkcija.TipElementa.BRID) {
-            površina.ukloniSegment(undoRedoAkcija.getSegmenti().get(0), Površina.IzvorAkcije.UNDOREDO);
+        else if(undoRedoAkcija.dajElement() == UndoRedoAkcija.TipElementa.BRID) {
+            površina.ukloniSegment(undoRedoAkcija.dajSegmenti().get(0), Površina.IzvorAkcije.UNDOREDO);
         }
-        else if(undoRedoAkcija.getElement() == UndoRedoAkcija.TipElementa.VIŠE_ELEMENATA) {
-            for(Segment segment : undoRedoAkcija.getSegmenti()) {
+        else if(undoRedoAkcija.dajElement() == UndoRedoAkcija.TipElementa.VIŠE_ELEMENATA) {
+            for(Segment segment : undoRedoAkcija.dajSegmenti()) {
                 površina.ukloniSegment(segment, Površina.IzvorAkcije.UNDOREDO);
             }
-            for(Krug krug : undoRedoAkcija.getVrhovi()) {
+//            Collections.reverse(undoRedoAkcija.dajVrhovi());
+            for(Krug krug : undoRedoAkcija.dajVrhovi()) {
                 površina.ukloniKrug(krug, Površina.IzvorAkcije.UNDOREDO);
             }
         }
@@ -107,13 +110,13 @@ public class UndoRedo {
         }
         UndoRedoAkcija undoRedoAkcija = undoLista.get(undoKraj);
         undoLista.remove(undoKraj);
-        if(undoRedoAkcija.getAkcija() == UndoRedoAkcija.TipAkcije.DODAJ) {
+        if(undoRedoAkcija.dajAkcija() == UndoRedoAkcija.TipAkcije.DODAJ) {
             izvršiAkcijuDodaj(undoRedoAkcija);
-            undoRedoAkcija.setAkcija(UndoRedoAkcija.TipAkcije.BRIŠI);
+            undoRedoAkcija.postaviAkcija(UndoRedoAkcija.TipAkcije.BRIŠI);
         }
-        else if(undoRedoAkcija.getAkcija() == UndoRedoAkcija.TipAkcije.BRIŠI) {
+        else if(undoRedoAkcija.dajAkcija() == UndoRedoAkcija.TipAkcije.BRIŠI) {
             izvršiAkcijuBriši(undoRedoAkcija);
-            undoRedoAkcija.setAkcija(UndoRedoAkcija.TipAkcije.DODAJ);
+            undoRedoAkcija.postaviAkcija(UndoRedoAkcija.TipAkcije.DODAJ);
         }
 
         this.dodajRedoAkciju(undoRedoAkcija);
@@ -129,13 +132,13 @@ public class UndoRedo {
         }
         UndoRedoAkcija undoRedoAkcija = redoLista.get(redoKraj);
         redoLista.remove(redoKraj);
-        if(undoRedoAkcija.getAkcija() == UndoRedoAkcija.TipAkcije.DODAJ) {
+        if(undoRedoAkcija.dajAkcija() == UndoRedoAkcija.TipAkcije.DODAJ) {
             izvršiAkcijuDodaj(undoRedoAkcija);
-            undoRedoAkcija.setAkcija(UndoRedoAkcija.TipAkcije.BRIŠI);
+            undoRedoAkcija.postaviAkcija(UndoRedoAkcija.TipAkcije.BRIŠI);
         }
-        else if(undoRedoAkcija.getAkcija() == UndoRedoAkcija.TipAkcije.BRIŠI) {
+        else if(undoRedoAkcija.dajAkcija() == UndoRedoAkcija.TipAkcije.BRIŠI) {
             izvršiAkcijuBriši(undoRedoAkcija);
-            undoRedoAkcija.setAkcija(UndoRedoAkcija.TipAkcije.DODAJ);
+            undoRedoAkcija.postaviAkcija(UndoRedoAkcija.TipAkcije.DODAJ);
         }
 
         this.dodajUndoAkcijuIzRedo(undoRedoAkcija);
