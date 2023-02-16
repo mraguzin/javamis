@@ -3,7 +3,7 @@ package parallelmis;
 import java.util.concurrent.ExecutionException;
 
 /**
- *
+ * Test 1
  * @author mraguzin
  */
 public class Primjer1 {

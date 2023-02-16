@@ -6,7 +6,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.time.StopWatch;
 
 /**
- *
+ * Test 3
  * @author mraguzin
  */
 public class Primjer3 {

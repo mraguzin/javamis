@@ -4,7 +4,9 @@ import java.awt.geom.Line2D;
 import java.util.Objects;
 
 /**
- *
+ * Apstrakcija Swingovog segmenta pravca radi podrške pomicanja i detekcije
+ * jednakosti isključivo preko jednakosti krajnjih vrhova (krugova) segmenta.
+ * 
  * @author mraguzin
  */
 public class Segment extends Line2D.Float {
@@ -14,6 +16,12 @@ public class Segment extends Line2D.Float {
         postavi(krug0, krug1);     
     }
     
+    /**
+     * Postavlja segment između <b>krug0</b> i <b>krug1</b> uz obrezivanje uzduž
+     * pravca t.d. segment i krajevi (krugovi) budu geometrijski disjunktni.
+     * @param krug0
+     * @param krug1 
+     */
     private void postavi(Krug krug0, Krug krug1) {
         double x0 = krug0.dajX();
         double y0 = krug0.dajY();

@@ -12,10 +12,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- *
- * @author mraguzin
  * Ova je malo optimizirana varijanta v3: ne računa particiju X-a zasebno na
  * barijeri već račun V\X paralelizira na sve dretve.
+ * 
+ * @author mraguzin
+ * @deprecated
  */
 public class Algoritam1v5 implements Runnable {
     private final ConcurrentSkipListSet<Integer> sviVrhovi;

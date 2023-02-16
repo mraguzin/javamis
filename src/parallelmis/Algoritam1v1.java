@@ -1,10 +1,10 @@
 package parallelmis;
 
 /**
- *
- * @author mraguzin
  * Ovo je glavna varijanta algoritma i koristi default implementaciju iz
- * apstraktne klase Algoritam1
+ * apstraktne klase Algoritam1.
+ * 
+ * @author mraguzin
  */
 public class Algoritam1v1 extends Algoritam1 { // TODO: ovo po mjerenjima (vidi Primjer3)
     // ispada prosječno najbrža varijanta, pa bi se isplatilo napraviti neke
@@ -12,11 +12,6 @@ public class Algoritam1v1 extends Algoritam1 { // TODO: ovo po mjerenjima (vidi 
     // Ipak, sve paralelne impl. uvijek ispadnu sporije od sekvencijalne,
     // pa bi trebali koristiti neke još veće grafove da vidimo kada se zaista
     // paralelnost isplati i koja implementacija konzistentno pobjeđuje.
-    
-    // Moguće optimizacije: 
-    // * paralelizirati particioniranje i računanje vjerojatnosti
-    // pomoću dodatne, nulte barijere koja se samo jedanput prođe za sve dretve.
-    // * paralelizirati b2kraj() tako da sve dretve paralelno ubacuju u I
     
     public Algoritam1v1(Graf graf, int brojDretvi) {
         super(graf, brojDretvi);

@@ -5,6 +5,9 @@ import misgui.Segment;
 
 import java.util.ArrayList;
 
+/**
+ * Klasa koja predstavlja pojedinu Undo ili Redo akciju.
+ */
 public class UndoRedoAkcija {
 
     public enum TipElementa {

@@ -5,7 +5,10 @@ import java.awt.geom.Ellipse2D;
 import java.awt.geom.Point2D;
 
 /**
- *
+ * Apstrakcija Swingove klase za krug radi podrške promjene boje
+ * (aktivacija/deaktivacija vrha u sučelju) te usporedbe jednog na površini
+ * za unos s drugim.
+ * 
  * @author mraguzin
  */
 public class Krug extends Ellipse2D.Float {

@@ -8,6 +8,9 @@ import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.Collections;
 
+/**
+ * Klasa za podršku Undo i Redo funkcionalnosti u grafičkom sučelju.
+ */
 public class UndoRedo {
     private final int MAX_ACTIONS = 10;
     private static Površina površina;

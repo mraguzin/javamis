@@ -20,9 +20,10 @@ import java.sql.*;
 import misgui.Površina.IzvorAkcije;
 
 /**
- *
+ * Glavna klasa koja sadrži sve komponente Swing
+ * grafičkog sučelja programa.
+ * 
  * @author mraguzin
- * Glavni dio za grafički unos grafa, s gumbima itd.
  */
 public class ProgramFrame extends JFrame {
     public static final String NASLOV = "Maksimalan nezavisni skup";
@@ -32,10 +33,23 @@ public class ProgramFrame extends JFrame {
     private final Color GUMB_NEAKTIVAN;
     private static final float R = 10.0f;
        
+    /**
+     * Svi mogući tipovi obavijesti koje glavni okvir (prozor GUI-ja) može
+     * primiti radi možebitne izmjene nekih stanja gumbi i sl.: rezultat
+     * izračunavanja, potreba za resetiranjem gumbi i općenita promjena u GUI-ju
+     * od strane korisnika.
+     */
     public enum TipObjave {
         REZULTAT, RESETIRAJ_GUMBE, PROMJENA
     }
     
+    /**
+     * Sve moguće akcije programa: dodavanje pojednog vrha, brida, kraja brida
+     * (poseban slučaj dodavanja vrha), brisanje vrha/brida, sekvencijalno
+     * rješavanje MIS problema, paralelno rješavanje MIS problema,
+     * nasumično generiranje vrhova grafa, nasumično generiranje bridova grafa
+     * i nul-akcija.
+     */
     public enum Akcija {
         DODAJ_VRH, DODAJ_BRID, DODAJ_KRAJ, BRIŠI, OČISTI, SEQ, PAR, GENERIRAJ_VRHOVE, GENERIRAJ_BRIDOVE, NEMA
         // DODAJ_KRAJ označava stanje u kojem čekamo klik za zadnji kraj brida
@@ -268,6 +282,9 @@ public class ProgramFrame extends JFrame {
         return chooser;
     }
     
+    /**
+     * Ova metoda učitava graf iz SQL baze koristeći JDBC PostgreSQL vezu.
+     */
     private void ucitaj()
     {
         String url = "jdbc:postgresql://localhost:5432/parallelMSI";
@@ -378,6 +395,10 @@ public class ProgramFrame extends JFrame {
         stariGraf = true;
     }
     
+    /**
+     * Ova metoda sprema unesen graf (na površini za crtanje GUI-ja)
+     * u PostgreSQL bazu.
+     */
     private void spremi()
     {
         Graf graf = površina.dajGraf();
@@ -458,11 +479,19 @@ public class ProgramFrame extends JFrame {
         }
     }
     
+    /**
+     * Zamrzava ili omogućuje (već prema vrijednosti <b>b</b>) sve stavke menija.
+     * @param b 
+     */
     private void omogućiMenije(boolean b) {
         for (var stavka : stavke)
             stavka.setEnabled(b);
     }
     
+    /**
+     * Zamrzava ili omogućuje (već prema vrijednosti <b>b</b>) sve gumbe GUI-ja.
+     * @param b 
+     */
     private void omogućiGumbe(boolean b) {
         for (var gumb : gumbi)
             gumb.setEnabled(b);
@@ -473,6 +502,15 @@ public class ProgramFrame extends JFrame {
         setTitle(ProgramFrame.NASLOV);
     }
     
+    /**
+     * Prima obavijest od strane drugih GUI komponenti (to ustvari može biti samo Površina
+     * za crtanje) o tome da treba obaviti određenu promjenu stanja. Ovisno o tipu objave
+     * parametra <b>objava</b>, obavlja se izmjena odgovarajućeg dijela sučelja.
+     * Ukoliko treba iskoristiti rezultat određene korisničke akcije, on se ovdje
+     * prenosi.
+     * @param objava
+     * @param rezultat 
+     */
     public void objavi(TipObjave objava, Collection<Integer> rezultat) {
         switch (objava) {
             case RESETIRAJ_GUMBE -> resetirajGumbe();
@@ -481,6 +519,10 @@ public class ProgramFrame extends JFrame {
         }
     }
     
+    /**
+     * Kada dođe do promjene u stanju sučelja, ova metoda se poziva kako
+     * bi se moglo obavijestiti korisnika da ima nespremljenih promjena.
+     */
     private void objaviPromjenu() {
         postojiPromjena = true;
         setTitle("* " + ProgramFrame.NASLOV);
@@ -491,6 +533,12 @@ public class ProgramFrame extends JFrame {
         return new Dimension(ŠIRINA, VISINA);
     }
     
+    /**
+     * Ova metoda prima rezultat izračunavanja i opet omogućuje korisničku interakciju
+     * sa sučeljem. Ako nema rezultata, to znači da korisnik nije niti bio unio
+     * graf i tome ga se obavještava.
+     * @param rezultat 
+     */
     private void objaviRezultat(Collection<Integer> rezultat) {
         omogućiGumbe(true);
         omogućiMenije(true);
@@ -499,8 +547,6 @@ public class ProgramFrame extends JFrame {
             JOptionPane.showMessageDialog(null, "Niste nacrtali graf!",
                     "Greška", JOptionPane.ERROR_MESSAGE);
         }
-        
-        // TODO: štopanje, neke dodatne poruke...?
     }
     
     private void resetirajGumbe() {

@@ -11,11 +11,12 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- *
- * @author mraguzin
  * Ova varijanta ne računa zasebno koje dijelove skupa X koja
  * dretva mora ukloniti iz V i ne koristi barijere, nego Phasere.
- * Vremenski, ovo je *najsporija* implementacija i možemo je zanemariti (uostalom, ima i bugova!)
+ * Vremenski, ovo je <b>najsporija</b> implementacija i možemo je zanemariti (uostalom, ima i bugova!)
+ * 
+ * @author mraguzin
+ * @deprecated
  */
 public class Algoritam1v4 extends Algoritam1 {
     private final List<LinkedHashSet<Integer>> particijaVrhova2 = particionirajVrhove2(brojDretvi);

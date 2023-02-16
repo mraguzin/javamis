@@ -11,12 +11,13 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- *
- * @author mraguzin
  * Ova varijanta koristi privremene sortirane nemutabilne kopije liste
  * susjednosti. Također, implementirana je neka vrsta "work-stealing"
  * pristupa kada neka od dretvi više nema posla
  * (prošle varijante tada jednostavno besposleno prolaze kroz barijere).
+ * 
+ * @author mraguzin
+ * @deprecated
  */
 public class Algoritam1v3 extends Algoritam1 {
     private final List<LinkedHashSet<Integer>> particijaVrhova2 = particionirajVrhove2(brojDretvi);

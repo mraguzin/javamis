@@ -21,7 +21,8 @@ import parallelmis.editmenuactions.UndoRedo;
 import parallelmis.editmenuactions.UndoRedoAkcija;
 
 /**
- *
+ * Klasa površine za unos grafa preko grafičkog sučelja.
+ * 
  * @author mraguzin
  */
 public class Površina extends JComponent {
@@ -48,6 +49,11 @@ public class Površina extends JComponent {
     public JMenuItem undo = new JMenuItem("Undo");
     public JMenuItem redo = new JMenuItem("Redo");
 
+    /**
+     * Mogući izvori akcija u GUI-ju: undo/redo gumb, direktna korisnikova
+     * interakcije, klik na gumb za random generiranje vrhova ili učitavanje
+     * grafa iz baze.
+     */
     public enum IzvorAkcije {
         UNDOREDO, KORISNIK, GENERIRANJE, UČITAVANJE
     }
@@ -78,7 +84,7 @@ public class Površina extends JComponent {
                     repaint();
                     prviKrug = trenutniKrug;
                     zadnjiKrug = null;
-                    akcija = Akcija.DODAJ_KRAJ; //TODO: dodati poruku u statusbar koja govori da treba kliknuti drugi kraj?
+                    akcija = Akcija.DODAJ_KRAJ;
                 }
                 else if (event.getClickCount() >= 2) {
                     prviKrug = zadnjiKrug = null;
@@ -240,6 +246,11 @@ public class Površina extends JComponent {
         return koordinate;
     }
     
+    /**
+     * Smješta graf <em>g</em> na površinu, s jednakim razmakom između svakog vrha,
+     * slažući ih red-po-red s fiksnim razmakom između redaka.
+     * @param g 
+     */
     public void učitajGraf(Graf g) {
         očisti(IzvorAkcije.KORISNIK);
         int i = 0;
@@ -292,6 +303,12 @@ public class Površina extends JComponent {
         this.akcija = Akcija.NEMA;
     }
     
+    /**
+     * Ova metoda prima obavijesti o obavljenoj akciji od strane grafičkog sučelja
+     * kako bi mogla reagirati na odgovarajući način. Parametar opisuje koja je 
+     * akcija obavljena.
+     * @param novaAkcija 
+     */
     public void obavijesti(Akcija novaAkcija) {
         for (int i : obojeniKrugovi)
             krugovi.get(i).resetiraj();
@@ -315,6 +332,12 @@ public class Površina extends JComponent {
         }
     }
     
+    /**
+     * Ova metoda prima kolekciju vrhova iz rezultata izvršavanja algoritma i
+     * ažurira površinu s odgovarajućom promjenom boja nekih krugova (vrhova).
+     * Također se grafičkom sučelju objavljuje da je došlo do promjene stanja.
+     * @param rez 
+     */
     private void procesirajRezultat(Collection<Integer> rez) {
         for (int vrh : rez)
             krugovi.get(vrh).oboji();
@@ -428,6 +451,12 @@ public class Površina extends JComponent {
         okvir.objavi(TipObjave.PROMJENA, null);
     }
 
+    /**
+     * Ova metoda nasumično generira vrhove grafa. Broj vrhova je specificiran
+     * u klasi textbox komponenti na glavnom okviru programa u ProgramFrame i
+     * ovdje mu se pristupa.
+     * @param izvorAkcije 
+     */
     public void generiranjeVrhova(IzvorAkcije izvorAkcije) {
         UndoRedoAkcija undoRedoAkcija = new UndoRedoAkcija(UndoRedoAkcija.TipElementa.VIŠE_ELEMENATA, UndoRedoAkcija.TipAkcije.BRIŠI);
         int brojZaGenerirati = okvir.getBrojZaGeneriranje();
@@ -445,6 +474,11 @@ public class Površina extends JComponent {
         okvir.resetirajBrojZaGeneriranje();
     }
 
+    /**
+     * Ova metoda nasumično generira bridove između unesenih vrhova grafa.
+     * Njihov broj je unesen u zasebnom textboxu u ProgramFrame i ovdje 
+     * mu se pristupa.
+     */
     private void generiranjeBridova() {
         UndoRedoAkcija undoRedoAkcija = new UndoRedoAkcija(UndoRedoAkcija.TipElementa.VIŠE_ELEMENATA, UndoRedoAkcija.TipAkcije.BRIŠI);
         int brojZaGenerirati = okvir.getBrojZaGeneriranje();
@@ -479,6 +513,10 @@ public class Površina extends JComponent {
         okvir.resetirajBrojZaGeneriranje();
     }
     
+    /**
+     * Ova meotda briše sve sa površine i objavljuje promjenu sučelju.
+     * @param izvorAkcije 
+     */
     public void očisti(IzvorAkcije izvorAkcije) {
         if(izvorAkcije == IzvorAkcije.KORISNIK) {
             UndoRedoAkcija undoRedoAkcija = new UndoRedoAkcija(

@@ -21,8 +21,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- *
- * @author mraguzin
  * Glavna klasa za algoritam kojim rješavamo MIS problem; postoje razne varijante
  * konkretnih implementacija koje su isprobavane i neke su se pokazale dobrima,
  * neke baš i ne. Sve nasljeđuju ovu klasu i implementiraju svoj run() u unutarnjoj
@@ -30,6 +28,8 @@ import java.util.logging.Logger;
  * određeni kontekst, koji je sadržan pod Algoritam1 (osim nekih specifičnih
  * objekata koje može definirati svaka zasebna konkretna klasa koja nasljeđuje
  * ovu).
+ * 
+ * @author mraguzin
  */
 public abstract class Algoritam1 {
     protected final Graf graf;

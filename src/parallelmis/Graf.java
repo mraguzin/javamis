@@ -8,14 +8,17 @@ import java.util.HashSet;
 import java.util.Scanner;
 
 /**
- *
+ * Glavna klasa za reprezentaciju grafa.
+ * Graf je napravljen da bude mutabilan tako da se lako
+ * modificira od strane GUI-ja i dalje smatra istim objektom, ali zbog
+ * paralelizma osiguravamo da se nikako ne može mijenjati tijekom
+ * samog izvođenja paralelnih rješenja za MIS! Paralelno rješenje se temelji
+ * na jednom algoritmu opisanom u <a href="https://disco.ethz.ch/alumni/pascalv/refs/mis_1986_luby.pdf">[1]</a>
+ * 
  * @author mraguzin
- * [1] <a href="https://disco.ethz.ch/alumni/pascalv/refs/mis_1986_luby.pdf">...</a>
+
  */
-public class Graf { // graf je napravljen da bude mutabilan tako da se lako
-    // modificira od strane GUI-ja i dalje smatra istim objektom, ali zbog
-    // paralelizma moramo osigurati da se nikako ne može mijenjati tijekom
-    // samog izvođenja paralelnih rješenja za MIS!
+public class Graf {
     private int brojVrhova;
     private ArrayList<ArrayList<Integer>> listaSusjednosti = new ArrayList<>();
     
@@ -50,6 +53,12 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         dajListuSusjednostiKruga(j).remove(dajListuSusjednostiKruga(j).indexOf(i));
     }
     
+    /**
+     * Ova metoda uklanja vrh indeksa <b>idx</b> iz grafa. Bitno je napomenuti da
+     * ona također renumerira vrhova kako bi oni ostali u rasponu [0..n-1],
+     * budući se <b>n</b> sada umanjio!
+     * @param idx 
+     */
     public void ukloniVrh(int idx) { // PAZI: ovo efektivno *renumerira* vrhove --- bitno za GUI impl.!
         // prvo uklonimo sve incidentne bridove
         for (int susjed : dajListuSusjednostiKruga(idx)) {
@@ -85,10 +94,17 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         brojVrhova--;
     }
     
+    /** 
+     * Metoda koja, radi obavljanja testova, učitava graf iz tekstualne datoteke <b>f</b>.
+     * Datoteka mora biti formatirana po uzoru na Challenge9 format opisan
+     * <a href="https://www.diag.uniroma1.it//challenge9/download.shtml">ovdje</a>.
+     * @param f
+     * @return Konstruiran graf iz datoteke
+     * @throws Exception 
+     */
     public static Graf stvoriIzDatoteke(File f) throws Exception {
         Graf graf;
-        // datoteka mora biti u tekstualnom Challenge 9 formatu
-        // vidjeti https://www.diag.uniroma1.it//challenge9/download.shtml
+
         try (java.util.Scanner scanner = new Scanner(f)) {
             String linija;
             graf = new Graf();
@@ -144,7 +160,10 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         return array;
     }
     
-    // "naivno" sekvencijalno rješenje MIS problema
+    /**
+     * Ova metoda implementira "naivno" sekvencijalno rješenje MIS problema.
+     * @return Lista vrhova rješenja
+     */
     public ArrayList<Integer> sequentialMIS() {
         ArrayList<Integer> maxNezavisanGraf = new ArrayList<>();
         HashSet<Integer> sviVrhovi = new HashSet<>(Arrays.asList(dajVrhove()));
@@ -159,6 +178,7 @@ public class Graf { // graf je napravljen da bude mutabilan tako da se lako
         return maxNezavisanGraf;
     }
 
+    @Override
     public String toString() {
         StringBuilder izlaz = new StringBuilder();
         for(int k = 0; k < dajListuSusjednosti().size(); ++k) {

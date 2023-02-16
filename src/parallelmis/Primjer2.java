@@ -6,7 +6,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 
 /**
- *
+ * Test 2
  * @author mraguzin
  */
 public class Primjer2 {

@@ -10,10 +10,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- *
- * @author mraguzin
  * Ova varijanta paralalenog MIS algoritma koristi finije lokote za zaštitu skupa
  * V umjesto da za taj skup koristi neku Concurrent kolekciju.
+ * 
+ * @author mraguzin
  */
 public class Algoritam1v2 extends Algoritam1 {    
     // bridove koje vidi su svi bridovi incidentni s gornjim vrhovima; ovo bi se moglo bolje raspodijeliti...
